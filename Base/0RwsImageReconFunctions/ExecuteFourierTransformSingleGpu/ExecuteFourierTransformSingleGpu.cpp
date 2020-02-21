@@ -33,11 +33,22 @@ Error = (char*)mxCalloc(errorlen,sizeof(char));
 strcpy(Error,"no error");
 
 //-------------------------------------
+// Get Dimensions           
+//-------------------------------------
+const mwSize *temp;
+temp = mxGetDimensions(prhs[3]);
+mwSize *ArrLen;
+ArrLen = (mwSize*)mxCalloc(1,sizeof(mwSize));
+ArrLen[0] = temp[0]*temp[1];
+
+//-------------------------------------
 // Fourier Transform              
 //-------------------------------------
 unsigned int *HTemp;
-HTemp = (unsigned int*)mxCalloc(1,sizeof(unsigned int));
-HTemp[0] = (unsigned int)HFourierTransformPlan[0];
+HTemp = (unsigned int*)mxCalloc(ArrLen[0],sizeof(unsigned int));
+for(int n=0;n<ArrLen[0];n++){ 
+    HTemp[n] = (unsigned int)HFourierTransformPlan[n];
+}
 FFT3DSglGpu(GpuNum,HImageMatrix,HKspaceMatrix,HTemp,Error);
 
 //-------------------------------------
@@ -45,6 +56,7 @@ FFT3DSglGpu(GpuNum,HImageMatrix,HKspaceMatrix,HTemp,Error);
 //------------------------------------- 
 plhs[0] = mxCreateString(Error);
 mxFree(Error);
+mxFree(ArrLen);
+mxFree(HTemp);
 
 }
-

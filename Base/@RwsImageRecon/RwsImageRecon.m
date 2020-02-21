@@ -10,6 +10,7 @@ classdef RwsImageRecon < handle
         HTempMatrix;
         HFourierTransformPlan;
         HInvFilt;
+        HSuperFilt; HSuperLow; HSuperLowConj; HSuperLowSoS; HSuperHighSoS;        
         ChanPerGpu;
     end
     methods 
@@ -36,7 +37,11 @@ classdef RwsImageRecon < handle
 %==================================================================         
         function SetupFourierTransform(RECON,ImageMatrixMemDims)
             RECON.ImageMatrixMemDims = uint64(ImageMatrixMemDims);
-            [RECON.HFourierTransformPlan,Error] = CreateFourierTransformPlanAllGpu61(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [RECON.HFourierTransformPlan,Error] = CreateFourierTransformPlanAllGpu75(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [RECON.HFourierTransformPlan,Error] = CreateFourierTransformPlanAllGpu61(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+            end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
@@ -84,6 +89,26 @@ classdef RwsImageRecon < handle
                 error(Error);
             end
         end          
+
+%==================================================================
+% LoadSuperFiltGpuMem
+%   - All GPUs
+%================================================================== 
+        function LoadSuperFiltGpuMem(RECON,SuperFilt)
+            if ~isa(SuperFilt,'single')
+                error('SuperFilt must be in single format');
+            end 
+            sz = size(SuperFilt);
+            RECON.ImageMatrixMemDims = uint64(sz);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [RECON.HSuperFilt,Error] = AllocateLoadRealMatrixAllGpuMem75(RECON.NumGpuUsed,SuperFilt);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1 
+                [RECON.HSuperFilt,Error] = AllocateLoadRealMatrixAllGpuMem61(RECON.NumGpuUsed,SuperFilt);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end          
         
 %==================================================================
 % AllocateReconInfoGpuMem
@@ -95,7 +120,11 @@ classdef RwsImageRecon < handle
                 error('ReconInfo dimensionality problem');  
             end
             RECON.ReconInfoMemDims = uint64(ReconInfoMemDims);
-            [RECON.HReconInfo,Error] = AllocateReconInfoGpuMem(RECON.NumGpuUsed,RECON.ReconInfoMemDims);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [RECON.HReconInfo,Error] = AllocateReconInfoGpuMem75(RECON.NumGpuUsed,RECON.ReconInfoMemDims);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [RECON.HReconInfo,Error] = AllocateReconInfoGpuMem61(RECON.NumGpuUsed,RECON.ReconInfoMemDims);
+            end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
@@ -135,7 +164,11 @@ classdef RwsImageRecon < handle
                     error('ReconInfo dimensionality problem');  
                 end
             end
-            [Error] = LoadReconInfoGpuMem(RECON.NumGpuUsed,RECON.HReconInfo,ReconInfo);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = LoadReconInfoGpuMem75(RECON.NumGpuUsed,RECON.HReconInfo,ReconInfo);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = LoadReconInfoGpuMem61(RECON.NumGpuUsed,RECON.HReconInfo,ReconInfo);
+            end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
@@ -157,7 +190,11 @@ classdef RwsImageRecon < handle
                     error('ReconInfo dimensionality problem');  
                 end
             end
-            [Error] = LoadReconInfoGpuMemAsync(RECON.NumGpuUsed,RECON.HReconInfo,ReconInfo);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = LoadReconInfoGpuMemAsync75(RECON.NumGpuUsed,RECON.HReconInfo,ReconInfo);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = LoadReconInfoGpuMemAsync61(RECON.NumGpuUsed,RECON.HReconInfo,ReconInfo);
+            end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
@@ -180,7 +217,11 @@ classdef RwsImageRecon < handle
             RECON.SampDatMemDims = uint64(SampDatMemDims);
             RECON.HSampDat = zeros([RECON.NumGpuUsed,RECON.NumGpuUsed],'uint64');
             for n = 1:RECON.ChanPerGpu
-                [RECON.HSampDat(n,:),Error] = AllocateSampDatGpuMem(RECON.NumGpuUsed,RECON.SampDatMemDims);
+                if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                    [RECON.HSampDat(n,:),Error] = AllocateSampDatGpuMem75(RECON.NumGpuUsed,RECON.SampDatMemDims);
+                elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                    [RECON.HSampDat(n,:),Error] = AllocateSampDatGpuMem61(RECON.NumGpuUsed,RECON.SampDatMemDims);
+                end
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
@@ -229,7 +270,11 @@ classdef RwsImageRecon < handle
             if isreal(SampDat)
                 error('SampDat must be complex');
             end
-            [Error] = LoadSampDatGpuMemAsync(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = LoadSampDatGpuMemAsync75(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = LoadSampDatGpuMemAsync61(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
+            end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
@@ -315,6 +360,48 @@ classdef RwsImageRecon < handle
             RECON.HKspaceMatrix = [];
             RECON.HTempMatrix = [];
         end         
+
+%==================================================================
+% AllocateSuperMatricesGpuMem
+%   - inpute = array of 3 dimension sizes
+%==================================================================                      
+        function AllocateSuperMatricesGpuMem(RECON)
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [RECON.HSuperLow,Error] = AllocateComplexMatrixAllGpuMem75(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [RECON.HSuperLowConj,Error] = AllocateComplexMatrixAllGpuMem75(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [RECON.HSuperLowSoS,Error] = AllocateInitializeComplexMatrixAllGpuMem75(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [RECON.HSuperHighSoS,Error] = AllocateInitializeComplexMatrixAllGpuMem75(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [RECON.HSuperLow,Error] = AllocateComplexMatrixAllGpuMem61(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [RECON.HSuperLowConj,Error] = AllocateComplexMatrixAllGpuMem61(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [RECON.HSuperLowSoS,Error] = AllocateInitializeComplexMatrixAllGpuMem61(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [RECON.HSuperHighSoS,Error] = AllocateInitializeComplexMatrixAllGpuMem61(RECON.NumGpuUsed,RECON.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+            end
+        end        
         
 %==================================================================
 % GridSampDat
@@ -335,52 +422,7 @@ classdef RwsImageRecon < handle
                 error(Error);
             end
         end            
-                
-%==================================================================
-% TestKernelInGpuMem
-%   - Remember first GPU = 0
-%================================================================== 
-        function Kernel = TestKernelInGpuMem(RECON,TestGpuNum)
-            if TestGpuNum > RECON.NumGpuUsed-1
-                error('Specified ''TestGpuNum'' beyond number of GPUs used');
-            end
-            TestGpuNum = uint64(TestGpuNum);
-            [Kernel,Error] = TestKernelInGpuMem(TestGpuNum,RECON.HKernel,RECON.KernelMemDims);
-            if not(strcmp(Error,'no error'))
-                error(Error);
-            end
-        end       
-        
-%==================================================================
-% TestReconInfoInGpuMem
-%   - Remember first GPU = 0
-%================================================================== 
-        function ReconInfo = TestReconInfoInGpuMem(RECON,TestGpuNum)
-            if TestGpuNum > RECON.NumGpuUsed-1
-                error('Specified ''TestGpuNum'' beyond number of GPUs used');
-            end
-            TestGpuNum = uint64(TestGpuNum);
-            [ReconInfo,Error] = TestReconInfoInGpuMem(TestGpuNum,RECON.HReconInfo,RECON.ReconInfoMemDims);
-            if not(strcmp(Error,'no error'))
-                error(Error);
-            end
-        end        
-
-%==================================================================
-% TestSampDatInGpuMem
-%   - Remember first GPU = 0
-%================================================================== 
-        function SampDat = TestSampDatInGpuMem(RECON,TestGpuNum)
-            if TestGpuNum > RECON.NumGpuUsed-1
-                error('Specified ''TestGpuNum'' beyond number of GPUs used');
-            end
-            TestGpuNum = uint64(TestGpuNum);
-            [SampDat,Error] = TestSampDatInGpuMem(TestGpuNum,RECON.HSampDat,RECON.SampDatMemDims);
-            if not(strcmp(Error,'no error'))
-                error(Error);
-            end
-        end        
-        
+                       
 %==================================================================
 % ReturnOneKspaceMatrixGpuMem
 %================================================================== 
@@ -418,6 +460,24 @@ classdef RwsImageRecon < handle
         end 
 
 %==================================================================
+% ReturnOneImageMatrixGpuMemSpecify
+%================================================================== 
+        function ImageMatrix = ReturnOneImageMatrixGpuMemSpecify(RECON,GpuNum,Image)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu75(GpuNum,Image,RECON.ImageMatrixMemDims);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu61(GpuNum,Image,RECON.ImageMatrixMemDims);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+        
+%==================================================================
 % KspaceFourierTransformShift
 %==================================================================         
         function KspaceFourierTransformShift(RECON,GpuNum,GpuChanNum)
@@ -452,7 +512,61 @@ classdef RwsImageRecon < handle
                 error(Error);
             end
         end         
+ 
+%==================================================================
+% ImageFourierTransformShiftSpecify
+%==================================================================         
+        function ImageFourierTransformShiftSpecify(RECON,GpuNum,Image)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = FourierTransformShiftSingleGpu75(GpuNum,Image,RECON.HTempMatrix,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = FourierTransformShiftSingleGpu61(GpuNum,Image,RECON.HTempMatrix,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
         
+%==================================================================
+% InverseFourierTransform
+%==================================================================         
+        function InverseFourierTransform(RECON,GpuNum,GpuChanNum)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = ExecuteInverseFourierTransformSingleGpu75(GpuNum,RECON.HImageMatrix(GpuChanNum,:),RECON.HKspaceMatrix(GpuChanNum,:),RECON.HFourierTransformPlan,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = ExecuteInverseFourierTransformSingleGpu61(GpuNum,RECON.HImageMatrix(GpuChanNum,:),RECON.HKspaceMatrix(GpuChanNum,:),RECON.HFourierTransformPlan,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end 
+        
+%==================================================================
+% InverseFourierTransformSpecify
+%==================================================================         
+        function InverseFourierTransformSpecify(RECON,GpuNum,Image,Kspace)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = ExecuteInverseFourierTransformSingleGpu75(GpuNum,Image,Kspace,RECON.HFourierTransformPlan,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = ExecuteInverseFourierTransformSingleGpu61(GpuNum,Image,Kspace,RECON.HFourierTransformPlan,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end        
+
 %==================================================================
 % FourierTransform
 %==================================================================         
@@ -462,15 +576,33 @@ classdef RwsImageRecon < handle
             end
             GpuNum = uint64(GpuNum);
             if str2double(RECON.GpuParams.ComputeCapability) == 7.5
-                [Error] = ExecuteInverseFourierTransformSingleGpu75(GpuNum,RECON.HImageMatrix(GpuChanNum,:),RECON.HKspaceMatrix(GpuChanNum,:),RECON.HFourierTransformPlan);  
+                [Error] = ExecuteFourierTransformSingleGpu75(GpuNum,RECON.HImageMatrix(GpuChanNum,:),RECON.HKspaceMatrix(GpuChanNum,:),RECON.HFourierTransformPlan);  
             elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
-                [Error] = ExecuteInverseFourierTransformSingleGpu61(GpuNum,RECON.HImageMatrix(GpuChanNum,:),RECON.HKspaceMatrix(GpuChanNum,:),RECON.HFourierTransformPlan);   
+                [Error] = ExecuteFourierTransformSingleGpu61(GpuNum,RECON.HImageMatrix(GpuChanNum,:),RECON.HKspaceMatrix(GpuChanNum,:),RECON.HFourierTransformPlan);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
         end         
-
+        
+%==================================================================
+% FourierTransformSpecify
+%==================================================================         
+        function FourierTransformSpecify(RECON,GpuNum,Image,Kspace)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = ExecuteFourierTransformSingleGpu75(GpuNum,Image,Kspace,RECON.HFourierTransformPlan);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = ExecuteFourierTransformSingleGpu61(GpuNum,Image,Kspace,RECON.HFourierTransformPlan);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end          
+        
 %==================================================================
 % MultInvFilt
 %==================================================================         
@@ -488,6 +620,137 @@ classdef RwsImageRecon < handle
                 error(Error);
             end
         end         
+
+%==================================================================
+% SuperKspaceFilter
+%==================================================================         
+        function SuperKspaceFilter(RECON,GpuNum,GpuChanNum)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = MultiplyComplexMatrixRealMatrixSingleGpu75(GpuNum,RECON.HKspaceMatrix(GpuChanNum,:),RECON.HSuperFilt,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = MultiplyComplexMatrixRealMatrixSingleGpu61(GpuNum,RECON.HKspaceMatrix(GpuChanNum,:),RECON.HSuperFilt,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end          
+
+%==================================================================
+% KspaceScaleCorrect
+%==================================================================         
+        function KspaceScaleCorrect(RECON,GpuNum,GpuChanNum)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            Scale = single(1/RECON.ConvScaleVal);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = ScaleComplexMatrixSingleGpu75(GpuNum,RECON.HKspaceMatrix(GpuChanNum,:),Scale,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = ScaleComplexMatrixSingleGpu61(GpuNum,RECON.HKspaceMatrix(GpuChanNum,:),Scale,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end          
+        
+%==================================================================
+% ScaleImage
+%==================================================================         
+        function ScaleImage(RECON,GpuNum,GpuChanNum,Scale)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            Scale = single(Scale);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = ScaleComplexMatrixSingleGpu75(GpuNum,RECON.HImageMatrix(GpuChanNum,:),Scale,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = ScaleComplexMatrixSingleGpu61(GpuNum,RECON.HImageMatrix(GpuChanNum,:),Scale,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end        
+
+%==================================================================
+% ScaleImageSpecify
+%==================================================================         
+        function ScaleImageSpecify(RECON,GpuNum,Image,Scale)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            Scale = single(Scale);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = ScaleComplexMatrixSingleGpu75(GpuNum,Image,Scale,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = ScaleComplexMatrixSingleGpu61(GpuNum,Image,Scale,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+
+%==================================================================
+% CreateLowImageConjugate
+%==================================================================         
+        function CreateLowImageConjugate(RECON,GpuNum)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = CopyComplexMatrixSingleGpuMemAsync75(GpuNum,RECON.HSuperLowConj,RECON.HSuperLow,RECON.ImageMatrixMemDims);  
+                [Error] = ConjugateComplexMatrixSingleGpu75(GpuNum,RECON.HSuperLowConj,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = CopyComplexMatrixSingleGpuMemAsync61(GpuNum,RECON.HSuperLowConj,RECON.HSuperLow,RECON.ImageMatrixMemDims);  
+                [Error] = ConjugateComplexMatrixSingleGpu61(GpuNum,RECON.HSuperLowConj,RECON.ImageMatrixMemDims);   
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end           
+ 
+%==================================================================
+% BuildLowSosImage
+%==================================================================         
+        function BuildLowSosImage(RECON,GpuNum)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu75(GpuNum,RECON.HSuperLowSoS,RECON.HSuperLow,RECON.HSuperLowConj,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu61(GpuNum,RECON.HSuperLowSoS,RECON.HSuperLow,RECON.HSuperLowConj,RECON.ImageMatrixMemDims);  
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end        
+
+%==================================================================
+% BuildHighSosImage
+%==================================================================         
+        function BuildHighSosImage(RECON,GpuNum,GpuChanNum)
+            if GpuNum > RECON.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu75(GpuNum,RECON.HSuperHighSoS,RECON.HImageMatrix(GpuChanNum,:),RECON.HSuperLowConj,RECON.ImageMatrixMemDims);  
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu61(GpuNum,RECON.HSuperHighSoS,RECON.HImageMatrix(GpuChanNum,:),RECON.HSuperLowConj,RECON.ImageMatrixMemDims);  
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end          
         
 %==================================================================
 % CudaDeviceWait
@@ -497,7 +760,11 @@ classdef RwsImageRecon < handle
                 error('Specified ''GpuNum'' beyond number of GPUs used');
             end
             GpuNum = uint64(GpuNum);
-            [Error] = CudaDeviceWait(GpuNum);
+            if str2double(RECON.GpuParams.ComputeCapability) == 7.5
+                [Error] = CudaDeviceWait75(GpuNum);
+            elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
+                [Error] = CudaDeviceWait61(GpuNum);
+            end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
@@ -505,4 +772,52 @@ classdef RwsImageRecon < handle
                 
     end
 end
+
+
+
+
+% %==================================================================
+% % TestKernelInGpuMem
+% %   - Remember first GPU = 0
+% %================================================================== 
+%         function Kernel = TestKernelInGpuMem(RECON,TestGpuNum)
+%             if TestGpuNum > RECON.NumGpuUsed-1
+%                 error('Specified ''TestGpuNum'' beyond number of GPUs used');
+%             end
+%             TestGpuNum = uint64(TestGpuNum);
+%             [Kernel,Error] = TestKernelInGpuMem(TestGpuNum,RECON.HKernel,RECON.KernelMemDims);
+%             if not(strcmp(Error,'no error'))
+%                 error(Error);
+%             end
+%         end       
+%         
+% %==================================================================
+% % TestReconInfoInGpuMem
+% %   - Remember first GPU = 0
+% %================================================================== 
+%         function ReconInfo = TestReconInfoInGpuMem(RECON,TestGpuNum)
+%             if TestGpuNum > RECON.NumGpuUsed-1
+%                 error('Specified ''TestGpuNum'' beyond number of GPUs used');
+%             end
+%             TestGpuNum = uint64(TestGpuNum);
+%             [ReconInfo,Error] = TestReconInfoInGpuMem(TestGpuNum,RECON.HReconInfo,RECON.ReconInfoMemDims);
+%             if not(strcmp(Error,'no error'))
+%                 error(Error);
+%             end
+%         end        
+% 
+% %==================================================================
+% % TestSampDatInGpuMem
+% %   - Remember first GPU = 0
+% %================================================================== 
+%         function SampDat = TestSampDatInGpuMem(RECON,TestGpuNum)
+%             if TestGpuNum > RECON.NumGpuUsed-1
+%                 error('Specified ''TestGpuNum'' beyond number of GPUs used');
+%             end
+%             TestGpuNum = uint64(TestGpuNum);
+%             [SampDat,Error] = TestSampDatInGpuMem(TestGpuNum,RECON.HSampDat,RECON.SampDatMemDims);
+%             if not(strcmp(Error,'no error'))
+%                 error(Error);
+%             end
+%         end 
         

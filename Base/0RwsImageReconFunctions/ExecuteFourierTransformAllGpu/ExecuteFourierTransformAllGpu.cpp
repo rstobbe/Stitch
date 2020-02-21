@@ -40,7 +40,7 @@ HTemp = (unsigned int*)mxCalloc(GpuTot[0],sizeof(unsigned int));
 for(int n=0;n<GpuTot[0];n++){
     HTemp[n] = (unsigned int)HFourierTransformPlan[n];
 }
-FFT3DAll(GpuTot,HImageMatrix,HKspaceMatrix,HTemp,Error);
+FFT3DAllGpu(GpuTot,HImageMatrix,HKspaceMatrix,HTemp,Error);
 
 //-------------------------------------
 // Return                  

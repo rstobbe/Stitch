@@ -2,7 +2,7 @@
 % 
 %==================================================
 
-function PerformPostAcqRecon(PARECON,DataFile)
+function PerformPostAcqReconReturnAll(PARECON,DataFile)
 
 %--------------------------------------
 % Get Siemens Data Info
@@ -75,32 +75,33 @@ for p = 1:PARECON.ChanPerGpu
         GpuNum = m-1;
         GpuChan = p;
         ChanNum = (p-1)*PARECON.RECON.NumGpuUsed+m;
+        PARECON.RECON.KspaceScaleCorrect(GpuNum,GpuChan); 
         PARECON.RECON.KspaceFourierTransformShift(GpuNum,GpuChan);                 
-        PARECON.RECON.FourierTransform(GpuNum,GpuChan);
+        PARECON.RECON.InverseFourierTransform(GpuNum,GpuChan);
         PARECON.RECON.ImageFourierTransformShift(GpuNum,GpuChan);          
+        PARECON.RECON.MultInvFilt(GpuNum,GpuChan);  
         disp(['Fourier Transform:  GPU ',num2str(m),', RxChannel ',num2str(ChanNum)]);
-        PARECON.RECON.MultInvFilt(GpuNum,GpuChan);               
     end
 end
 
 %--------------------------------------
 % Return Data
 %-------------------------------------- 
+Scale = 1e10;  % for Siemens
 for p = 1:PARECON.ChanPerGpu
     for m = 1:PARECON.RECON.NumGpuUsed
         GpuNum = m-1;
         GpuChan = p;
         ChanNum = (p-1)*PARECON.RECON.NumGpuUsed+m;
+        PARECON.RECON.ScaleImage(GpuNum,GpuChan,Scale); 
         PARECON.Image(:,:,:,:,ChanNum) = PARECON.RECON.ReturnOneImageMatrixGpuMem(GpuNum,GpuChan);
         disp(['Return Image:  GPU ',num2str(m),', RxChannel ',num2str(ChanNum)]);
     end
 end
 
-disp('Permute/Flip/Scale');
+disp('Permute/Flip');
 PARECON.Image = permute(PARECON.Image,[2 1 3 4 5 6 7]);
 PARECON.Image = flip(PARECON.Image,2);
-Scale = single(PARECON.RECON.ImageMatrixMemDims(1)*PARECON.RECON.ImageMatrixMemDims(2)*PARECON.RECON.ImageMatrixMemDims(3));
-PARECON.Image = 1e10 * PARECON.Image/(Scale*PARECON.RECON.ConvScaleVal);
 
 %--------------------------------------
 % Free GPU Memory

@@ -42,7 +42,7 @@ strcpy(Error,"no error");
 //-------------------------------------
 unsigned int *HTemp;
 HTemp = (unsigned int*)mxCalloc(GpuTot[0],sizeof(unsigned int));
-FFT3DSetupAll(GpuTot,HTemp,ImageMatrixMemDims,Error);
+FFT3DSetupAllGpu(GpuTot,HTemp,ImageMatrixMemDims,Error);
 
 for(int n=0;n<GpuTot[0];n++){
     HFourierTransformPlan[n] = (mwSize)HTemp[n];

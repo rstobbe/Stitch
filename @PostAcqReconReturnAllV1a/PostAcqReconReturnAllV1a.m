@@ -50,7 +50,7 @@ classdef PostAcqReconReturnAllV1a < handle
             PARECON.DataPath = DataFile(1:ind(end));
             PARECON.DataFile = DataFile(ind(end)+1:end);
             PARECON.DataName = DataFile(ind(end)+6:end-4);
-            PerformPostAcqRecon(PARECON,DataFile);
+            PerformPostAcqReconReturnAll(PARECON,DataFile);
         end 
         
 %==================================================================

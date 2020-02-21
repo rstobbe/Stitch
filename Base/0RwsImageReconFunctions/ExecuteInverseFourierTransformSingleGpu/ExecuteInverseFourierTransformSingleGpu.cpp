@@ -8,6 +8,7 @@
 #include "math.h"
 #include "string.h"
 #include "CUDA_FourierTransform_v11a.h"
+#include "CUDA_ScaleComplexMatrix_v11a.h"
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray *prhs[])
 {
@@ -15,12 +16,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray *prhs[])
 //-------------------------------------
 // Input                        
 //-------------------------------------
-if (nrhs != 4) mexErrMsgTxt("Should have 4 inputs");
-mwSize *GpuNum,*HImageMatrix,*HKspaceMatrix,*HFourierTransformPlan;
+if (nrhs != 5) mexErrMsgTxt("Should have 5 inputs");
+mwSize *GpuNum,*HImageMatrix,*HKspaceMatrix,*HFourierTransformPlan,*MatrixMemDims;
 GpuNum = mxGetUint64s(prhs[0]);
 HImageMatrix = mxGetUint64s(prhs[1]);
 HKspaceMatrix = mxGetUint64s(prhs[2]);
 HFourierTransformPlan = mxGetUint64s(prhs[3]);
+MatrixMemDims = mxGetUint64s(prhs[4]);
 
 //-------------------------------------
 // Output                       
@@ -52,12 +54,26 @@ for(int n=0;n<ArrLen[0];n++){
 IFFT3DSglGpu(GpuNum,HImageMatrix,HKspaceMatrix,HTemp,Error);
 
 //-------------------------------------
+// Get ScaleVal         
+//------------------------------------
+float *ScaleVal;
+ScaleVal = (float*)mxCalloc(1,sizeof(float));
+float MatDim = (float)MatrixMemDims[0];
+ScaleVal[0] = 1/(MatDim*MatDim*MatDim);
+
+//-------------------------------------
+// IFFT Scale            
+//-------------------------------------
+ScaleComplexMatrix(GpuNum,HImageMatrix,ScaleVal,MatrixMemDims[0],Error);
+
+//-------------------------------------
 // Return                  
 //------------------------------------- 
 plhs[0] = mxCreateString(Error);
 mxFree(Error);
 mxFree(ArrLen);
 mxFree(HTemp);
+mxFree(ScaleVal);
 
 }
 
