@@ -23,14 +23,18 @@ classdef ReadSiemens < handle
 %==================================================================
 % Define
 %==================================================================   
-        function DATA = ReadSiemens(DataFile,BlockSize)
+        function DATA = ReadSiemens(DataFile,BlockSize,ChanPerGpu,GpuNum)
             DATA.DataFile = DataFile;
             DATA = ReadSiemensDataInfo(DATA,DataFile);
             DATA.ReadSize = DATA.Dims.NCha*(DATA.ChannelHeaderBytes/4 + 2*DATA.Dims.NCol);
             DATA.ComplexReadArr = [2 DATA.ReadSize/2];
             DATA.ReadShape = [DATA.ChannelHeaderBytes/8+DATA.Dims.NCol,DATA.Dims.NCha]; 
             DATA.BlockSize = BlockSize;
-            DATA.Data = complex(zeros([DATA.ReadShape(1),DATA.BlockSize,DATA.ReadShape(2)],'single'));
+            if ChanPerGpu*GpuNum < DATA.ReadShape(2)
+                error('ChanPerGpu * Gpus < RxChannels');
+            end
+            %DATA.Data = complex(zeros([DATA.ReadShape(1),DATA.BlockSize,DATA.ReadShape(2)],'single'));
+            DATA.Data = complex(zeros([DATA.ReadShape(1),DATA.BlockSize,ChanPerGpu*GpuNum],'single'));
         end
 
 %==================================================================
@@ -43,7 +47,7 @@ classdef ReadSiemens < handle
             for n = 1:length(Arr)
                 fseek(fid,DATA.Mem.Pos(Arr(n)) + DATA.ScanHeaderBytes,'bof');
                 raw = fread(fid,DATA.ComplexReadArr,'float=>single').';
-                DATA.Data(:,n,:) = reshape(complex(raw(:,1),raw(:,2)),DATA.ReadShape);
+                DATA.Data(:,n,1:DATA.ReadShape(2)) = reshape(complex(raw(:,1),raw(:,2)),DATA.ReadShape);
             end
             Data = DATA.Data(DATA.ChannelHeaderBytes/8+(Samp.Start:Samp.End),:,:);
             if length(Arr) < DATA.BlockSize

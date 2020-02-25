@@ -268,7 +268,8 @@ classdef RwsImageRecon < handle
                 end
             end
             if isreal(SampDat)
-                error('SampDat must be complex');
+                %error('SampDat must be complex');
+                SampDat = complex(SampDat);
             end
             if str2double(RECON.GpuParams.ComputeCapability) == 7.5
                 [Error] = LoadSampDatGpuMemAsync75(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);

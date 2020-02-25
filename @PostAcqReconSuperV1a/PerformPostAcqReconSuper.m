@@ -8,7 +8,8 @@ function PerformPostAcqReconSuper(PARECON,DataFile)
 % Get Siemens Data Info
 %--------------------------------------  
 disp('Read Siemens Header');
-DATA = ReadSiemens(DataFile,PARECON.BlockSize);
+
+DATA = ReadSiemens(DataFile,PARECON.BlockSize,PARECON.ChanPerGpu,PARECON.RECON.NumGpuUsed);
 PARECON.Info = DATA.Info;
 
 %--------------------------------------
