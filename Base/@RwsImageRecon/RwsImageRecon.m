@@ -332,12 +332,12 @@ classdef RwsImageRecon < handle
                     if not(strcmp(Error,'no error'))
                         error(Error);
                     end
-                    [Error] = FreeAllGpuMem75(RECON.NumGpuUsed,RECON.KspaceMatrix(n,:));
+                    [Error] = FreeAllGpuMem75(RECON.NumGpuUsed,RECON.HKspaceMatrix(n,:));
                     if not(strcmp(Error,'no error'))
                         error(Error);
                     end
                 end
-                [Error] = FreeAllGpuMem75(RECON.NumGpuUsed,RECON.TempMatrix);
+                [Error] = FreeAllGpuMem75(RECON.NumGpuUsed,RECON.HTempMatrix);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
