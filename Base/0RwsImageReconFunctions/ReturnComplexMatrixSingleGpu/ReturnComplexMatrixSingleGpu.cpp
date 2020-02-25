@@ -47,7 +47,7 @@ mwSize *ArrLen;
 ArrLen = (mwSize*)mxCalloc(1,sizeof(mwSize));
 ArrLen[0] = ImageMatrixMemDims[0]*ImageMatrixMemDims[1]*ImageMatrixMemDims[2];
 ArrLen[1] = 0;
-ArrReturnSglOneC(GpuNum,ImageMatrix,HImageMatrix,ArrLen,Error);
+ArrReturnSglOneAsyncC(GpuNum,ImageMatrix,HImageMatrix,ArrLen,Error);
 
 //-------------------------------------
 // Return Error                    
