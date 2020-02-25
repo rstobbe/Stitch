@@ -2,32 +2,21 @@
 % 
 %==================================================
 
-function PARECON = InitializePostAcqRecon(PARECON,ReconInfo)
+function PARECON = InitializePostAcqRecon(PARECON)
 
 %--------------------------------------
 % Load ReconInfo
 %--------------------------------------
-addpath(ReconInfo.Path);
-ReconInfoFunc = str2func(ReconInfo.File);
-ReconInfo = ReconInfoFunc();
+addpath(PARECON.ReconPath);
+ReconInfoFunc = str2func(PARECON.ReconFile);
+ReconInfo = ReconInfoFunc(PARECON.DATA.Info);
 PARECON.ReconInfo = ReconInfo;
-
-%--------------------------------------
-% Reset Gpus
-%--------------------------------------
-GpuTot = gpuDeviceCount;
-GpuParams = gpuDevice; 
-if ReconInfo.ResetGpus == 1
-    disp('Reset GPUs');
-    for n = 1:GpuTot
-        gpuDevice(n);               
-    end
-end
 
 %--------------------------------------
 % Build Object
 %--------------------------------------
 GpuTot = gpuDeviceCount;
+GpuParams = gpuDevice; 
 PARECON.RECON = RwsImageRecon(GpuTot,GpuParams);
 
 %--------------------------------------
@@ -35,6 +24,8 @@ PARECON.RECON = RwsImageRecon(GpuTot,GpuParams);
 %--------------------------------------
 PARECON.BlockSize = ReconInfo.BlockSize;
 PARECON.ChanPerGpu = ReconInfo.ChanPerGpu;
+PARECON.GpuNum = GpuTot;
+PARECON.RxChannels = PARECON.DATA.Info.RxChannels;
 PARECON.RECON.SetChanPerGpu(ReconInfo.ChanPerGpu);
 
 %--------------------------------------
@@ -61,16 +52,12 @@ disp('Load InvFilt All GPUs');
 IFprms = saveData.IFprms;
 ZF = IFprms.ZF;
 InvFilt = IFprms.V;
-% %-
-% test = min(InvFilt(:))
-% InvFilt = 2*ones(size(InvFilt),'single');
-% %-
 PARECON.RECON.LoadInvFiltGpuMem(InvFilt);
 
 %--------------------------------------
 % Load Trajectory
 %--------------------------------------
-disp('Load Trajectory Data');
+disp('Load Trajectory Info');
 warning 'off';                          % because trys to find functions not on path
 load(ReconInfo.Trajectory);
 warning 'on';
@@ -106,6 +93,7 @@ PARECON.ReconPars = ReconPars;
 PARECON.SampStart = KSMP.SampStart;
 PARECON.NumCol = KSMP.nproRecon;
 PARECON.NumTraj = PROJimp.nproj;
+PARECON.Dummies = IMP.dummies;
 
 %---------------------------------------------
 % Normalize Trajectories to Grid

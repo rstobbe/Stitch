@@ -21,22 +21,27 @@ classdef ReadSiemens < handle
     methods 
 
 %==================================================================
-% Define
+% Define & Read Header
 %==================================================================   
-        function DATA = ReadSiemens(DataFile,BlockSize,ChanPerGpu,GpuNum)
+        function DATA = ReadSiemens(DataFile)
             DATA.DataFile = DataFile;
             DATA = ReadSiemensDataInfo(DATA,DataFile);
             DATA.ReadSize = DATA.Dims.NCha*(DATA.ChannelHeaderBytes/4 + 2*DATA.Dims.NCol);
             DATA.ComplexReadArr = [2 DATA.ReadSize/2];
             DATA.ReadShape = [DATA.ChannelHeaderBytes/8+DATA.Dims.NCol,DATA.Dims.NCha]; 
+        end
+
+%==================================================================
+% Allocate Data Memory
+%==================================================================   
+        function AllocateDataMemory(DATA,BlockSize,ChanPerGpu,GpuNum)
             DATA.BlockSize = BlockSize;
             if ChanPerGpu*GpuNum < DATA.ReadShape(2)
                 error('ChanPerGpu * Gpus < RxChannels');
             end
-            %DATA.Data = complex(zeros([DATA.ReadShape(1),DATA.BlockSize,DATA.ReadShape(2)],'single'));
             DATA.Data = complex(zeros([DATA.ReadShape(1),DATA.BlockSize,ChanPerGpu*GpuNum],'single'));
-        end
-
+        end        
+        
 %==================================================================
 % CreateImage
 %================================================================== 

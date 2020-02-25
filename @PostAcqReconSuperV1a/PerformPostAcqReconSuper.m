@@ -2,22 +2,20 @@
 % 
 %==================================================
 
-function PerformPostAcqReconSuper(PARECON,DataFile)
-
-%--------------------------------------
-% Get Siemens Data Info
-%--------------------------------------  
-disp('Read Siemens Header');
-
-DATA = ReadSiemens(DataFile,PARECON.BlockSize,PARECON.ChanPerGpu,PARECON.RECON.NumGpuUsed);
-PARECON.Info = DATA.Info;
+function PerformPostAcqReconSuper(PARECON)
 
 %--------------------------------------
 % Allocate Host Memory
 %--------------------------------------  
-disp('Allocate Host Space for Image');
-Channels = 2;
-PARECON.InitializeImage(Channels);
+disp('Allocate CPU Memory for Scanner Data');
+PARECON.DATA.AllocateDataMemory(PARECON.BlockSize,PARECON.ChanPerGpu,PARECON.GpuNum);
+disp('Allocate CPU Memory for Image');
+NumExp = 1;
+PARECON.Image = complex(zeros([PARECON.RECON.ImageMatrixMemDims,NumExp],'single'),zeros([PARECON.RECON.ImageMatrixMemDims,NumExp],'single'));
+PARECON.ImageHighSoS = complex(zeros([PARECON.RECON.ImageMatrixMemDims,NumExp],'single'),zeros([PARECON.RECON.ImageMatrixMemDims,NumExp],'single'));
+PARECON.ImageLowSoS = zeros([PARECON.RECON.ImageMatrixMemDims,NumExp],'single');
+PARECON.ImageHighSoSArr = complex(zeros([PARECON.RECON.ImageMatrixMemDims,NumExp,PARECON.GpuNum],'single'),zeros([PARECON.RECON.ImageMatrixMemDims,NumExp,PARECON.GpuNum],'single'));
+PARECON.ImageLowSoSArr = complex(zeros([PARECON.RECON.ImageMatrixMemDims,NumExp,PARECON.GpuNum],'single'),zeros([PARECON.RECON.ImageMatrixMemDims,NumExp,PARECON.GpuNum],'single'));
 
 %--------------------------------------
 % Allocate memory (on all GPUs)
@@ -46,7 +44,7 @@ for n = 1:PARECON.NumRuns
     % ReadSiemensData
     %--------------------------------------      
     disp('Read Siemens');
-    Blk.Start = (n-1)*PARECON.BlockSize+1;
+    Blk.Start = (n-1)*PARECON.BlockSize+PARECON.Dummies+1;
     Blk.Stop = n*PARECON.BlockSize;
     if Blk.Stop > PARECON.NumTraj
         Blk.Stop = PARECON.NumTraj;
@@ -54,7 +52,7 @@ for n = 1:PARECON.NumRuns
     Blk.Lines = Blk.Stop-Blk.Start+1;
     Samp.Start = PARECON.SampStart;
     Samp.End = PARECON.SampStart+PARECON.NumCol-1;
-    SampDat = DATA.ReadSiemensDataBlock(Blk,Samp);
+    SampDat = PARECON.DATA.ReadSiemensDataBlock(Blk,Samp);
     for p = 1:PARECON.ChanPerGpu
         for m = 1:PARECON.RECON.NumGpuUsed
             GpuNum = m-1;

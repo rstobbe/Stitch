@@ -124,6 +124,7 @@ Info.Protocol = Protocol;
 Info.VolunteerID = VolunteerID;
 Info.TrajName = ExpPars.TrajName;
 Info.TrajImpName = ExpPars.TrajImpName;
+Info.RxChannels = Dims.NCha;
 
 DATA.Hdr = Hdr;
 DATA.Dims = Dims;
