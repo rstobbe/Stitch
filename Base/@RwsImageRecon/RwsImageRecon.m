@@ -463,7 +463,7 @@ classdef RwsImageRecon < handle
 %==================================================================
 % ReturnOneImageMatrixGpuMemSpecify
 %================================================================== 
-        function ImageMatrix = ReturnOneImageMatrixGpuMemSpecify(RECON,GpuNum,Image)
+        function ImageMatrix = ReturnOneImageMatrixGpuMemSpecify(RECON,ImageMatrix,GpuNum,Image)
             if GpuNum > RECON.NumGpuUsed-1
                 error('Specified ''GpuNum'' beyond number of GPUs used');
             end

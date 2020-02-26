@@ -43,7 +43,7 @@ classdef ReadSiemens < handle
         end        
         
 %==================================================================
-% CreateImage
+% Read Data Block
 %================================================================== 
         function Data = ReadSiemensDataBlock(DATA,Blk,Samp)
             fid = fopen(DATA.DataFile,'r','l','US-ASCII');

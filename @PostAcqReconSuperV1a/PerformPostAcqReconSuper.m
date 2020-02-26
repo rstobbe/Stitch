@@ -45,14 +45,16 @@ for n = 1:PARECON.NumRuns
     %--------------------------------------      
     disp('Read Siemens');
     Blk.Start = (n-1)*PARECON.BlockSize+PARECON.Dummies+1;
-    Blk.Stop = n*PARECON.BlockSize;
+    Blk.Stop = n*PARECON.BlockSize+PARECON.Dummies;
     if Blk.Stop > PARECON.NumTraj
         Blk.Stop = PARECON.NumTraj;
     end
     Blk.Lines = Blk.Stop-Blk.Start+1;
     Samp.Start = PARECON.SampStart;
     Samp.End = PARECON.SampStart+PARECON.NumCol-1;
+    tic
     SampDat = PARECON.DATA.ReadSiemensDataBlock(Blk,Samp);
+    toc
     for p = 1:PARECON.ChanPerGpu
         for m = 1:PARECON.RECON.NumGpuUsed
             GpuNum = m-1;
@@ -112,10 +114,15 @@ end
 %-------------------------------------- 
 for m = 1:PARECON.RECON.NumGpuUsed
     GpuNum = m-1;
-    PARECON.ImageHighSoSArr(:,:,:,:,m) = PARECON.RECON.ReturnOneImageMatrixGpuMemSpecify(GpuNum,PARECON.RECON.HSuperHighSoS);
-    PARECON.ImageLowSoSArr(:,:,:,:,m) = PARECON.RECON.ReturnOneImageMatrixGpuMemSpecify(GpuNum,PARECON.RECON.HSuperLowSoS);
-    disp(['Return Super Images:  GPU ',num2str(m)]);
+    PARECON.RECON.ReturnOneImageMatrixGpuMemSpecify(PARECON.ImageHighSoSArr(:,:,:,:,m),GpuNum,PARECON.RECON.HSuperHighSoS);
+    disp(['Return Super High Images:  GPU ',num2str(m)]);
 end
+for m = 1:PARECON.RECON.NumGpuUsed
+    GpuNum = m-1;
+    PARECON.ImageLowSoSArr(:,:,:,:,m) = PARECON.RECON.ReturnOneImageMatrixGpuMemSpecify(GpuNum,PARECON.RECON.HSuperLowSoS);
+    disp(['Return Super Low Images:  GPU ',num2str(m)]);
+end
+
 PARECON.RECON.CudaDeviceWait(PARECON.RECON.NumGpuUsed-1);
 
 disp('Combine GPUs / Finish Super');

@@ -54,24 +54,13 @@ classdef PostAcqReconSuperV1a < handle
             PARECON.ReconPath = 'D:\StitchRelated\DefaultReconstructions\';
             InitializePostAcqRecon(PARECON);
         end          
-
-%==================================================================
-% ResetGpus
-%==================================================================   
-        function ResetGpus(PARECON)
-            GpuTot = gpuDeviceCount;
-            disp('Reset GPUs');
-            for n = 1:GpuTot
-                gpuDevice(n);               
-            end
-        end
-        
+      
 %==================================================================
 % UserRecon
 %==================================================================   
         function UserRecon(PARECON,ReconInfo)
             PARECON.ReconFile = ReconInfo.File;
-            PARECON.ReconPath = ReconInfo.ReconPath;
+            PARECON.ReconPath = ReconInfo.Path;
             InitializePostAcqRecon(PARECON);
         end        
         
