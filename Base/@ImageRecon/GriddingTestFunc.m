@@ -42,6 +42,9 @@ for n = 1:PARECON.NumRuns
             GpuNum = m-1;
             GpuChan = p;
             ChanNum = (p-1)*PARECON.NumGpuUsed+m;
+            if ChanNum > PARECON.DataDims.NCha
+                break
+            end
             SampDat0 = PARECON.Data(:,:,ChanNum);                                                
             PARECON.LoadSampDatGpuMemAsync(GpuNum,GpuChan,SampDat0);                 
         end
