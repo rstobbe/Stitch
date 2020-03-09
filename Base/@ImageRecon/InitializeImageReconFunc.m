@@ -2,36 +2,27 @@
 % 
 %==================================================
 
-function PARECON = InitializePostAcqRecon(PARECON)
+function PARECON = InitializeImageReconFunc(PARECON)
 
 %--------------------------------------
 % Load ReconInfo
 %--------------------------------------
+GpuTot = gpuDeviceCount;
 addpath(PARECON.ReconPath);
 ReconInfoFunc = str2func(PARECON.ReconFile);
-ReconInfo = ReconInfoFunc(PARECON.DATA.Info);
+ReconInfo = ReconInfoFunc(PARECON.DataInfo,GpuTot);
 PARECON.ReconInfo = ReconInfo;
 
 %--------------------------------------
-% Build Object
+% Initizize RwsImageRecon Object
 %--------------------------------------
-GpuTot = gpuDeviceCount;
 GpuParams = gpuDevice; 
-PARECON.RECON = RwsImageRecon(GpuTot,GpuParams);
-
-%--------------------------------------
-% Save Parameters
-%--------------------------------------
-PARECON.BlockSize = ReconInfo.BlockSize;
-PARECON.ChanPerGpu = ReconInfo.ChanPerGpu;
-PARECON.GpuNum = GpuTot;
-PARECON.RxChannels = PARECON.DATA.Info.RxChannels;
-PARECON.RECON.SetChanPerGpu(ReconInfo.ChanPerGpu);
+PARECON.InitGpuInterface(GpuTot,GpuParams,ReconInfo.ChanPerGpu);
 
 %--------------------------------------
 % Load Kernel
 %--------------------------------------
-disp('Load Kernel Memory');
+disp('Retreive Kernel From HardDrive');
 load(ReconInfo.Kernel);
 KRNprms = saveData.KRNprms;
 iKern = round(1e9*(1/(KRNprms.res*KRNprms.DesforSS)))/1e9;
@@ -41,23 +32,23 @@ if (chW+1)*iKern > length(Kern)
     error;
 end
 disp('Load Kernel All GPUs');
-PARECON.RECON.LoadKernelGpuMem(Kern,iKern,chW,KRNprms.convscaleval);
+PARECON.LoadKernelGpuMem(Kern,iKern,chW,KRNprms.convscaleval);
 
 %--------------------------------------
 % Load Inverse Filter
 %--------------------------------------
-disp('Load InvFilt Memory');
+disp('Retreive InvFilt From HardDrive');
 load(ReconInfo.InvFilt);
 disp('Load InvFilt All GPUs');
 IFprms = saveData.IFprms;
 ZF = IFprms.ZF;
 InvFilt = IFprms.V;
-PARECON.RECON.LoadInvFiltGpuMem(InvFilt);
+PARECON.LoadInvFiltGpuMem(InvFilt);
 
 %--------------------------------------
 % Load Trajectory
 %--------------------------------------
-disp('Load Trajectory Info');
+disp('Retreive Trajectory Info From HardDrive');
 warning 'off';                          % because trys to find functions not on path
 load(ReconInfo.Trajectory);
 warning 'on';
@@ -90,10 +81,16 @@ PARECON.ReconPars = ReconPars;
 %--------------------------------------
 % Return Sampling
 %--------------------------------------
-PARECON.SampStart = KSMP.SampStart;
 PARECON.NumCol = KSMP.nproRecon;
 PARECON.NumTraj = PROJimp.nproj;
 PARECON.Dummies = IMP.dummies;
+PARECON.SampStart = KSMP.SampStart;
+PARECON.SampEnd = PARECON.SampStart+PARECON.NumCol-1;
+
+%--------------------------------------
+% Set DataBlockSize
+%--------------------------------------
+PARECON.SetDataBlockSize(ReconInfo.BlockSize);                
 
 %---------------------------------------------
 % Normalize Trajectories to Grid
@@ -112,6 +109,7 @@ end
 %---------------------------------------------
 % k-Samp Shift
 %---------------------------------------------
+disp('Manipulate Trajectories');
 shift = (ZF/2+1)-((Ksz+1)/2);
 Kx = Kx+shift;
 Ky = Ky+shift;
@@ -132,23 +130,15 @@ TrajData0 = permute(TrajData0,[3 2 1]);
 % Make multiple of block size
 %---------------------------------------------
 sz = size(TrajData0);
-PARECON.NumRuns = ceil(sz(2)/PARECON.BlockSize);
-PARECON.TrajData = C*ones([sz(1),PARECON.NumRuns*PARECON.BlockSize,4],'single');
+PARECON.NumRuns = ceil(sz(2)/PARECON.DataBlockSize);
+PARECON.TrajData = C*ones([sz(1),PARECON.NumRuns*PARECON.DataBlockSize,4],'single');
 PARECON.TrajData(:,1:sz(2),:) = TrajData0;
 
 %---------------------------------------------
 % Return Image Size / Setup FFT
 %---------------------------------------------
+disp('Setup Fourier Transform');
 PARECON.ZeroFill = [ZF ZF ZF];
-PARECON.RECON.SetupFourierTransform(PARECON.ZeroFill);
+PARECON.SetupFourierTransform(PARECON.ZeroFill);
 
-%--------------------------------------
-% Super Filter
-%-------------------------------------- 
-disp('Create Super Filter');
-SUPER.ProfRes = PARECON.ReconInfo.Super.ProfRes;
-SUPER.ProfFilt = PARECON.ReconInfo.Super.ProfFilt;
-SUPER.ImDims = PARECON.RECON.ImageMatrixMemDims;
-SuperFilt = CreateSuperFilter(ReconPars,SUPER);
-PARECON.RECON.LoadSuperFiltGpuMem(SuperFilt);
 

@@ -8,7 +8,7 @@ disp('Package and Write Compass');
 IMG.Method = PARECON.Method;
 IMG.Im = PARECON.Image;
 IMG.ReconInfo = PARECON.ReconInfo;
-Info = PARECON.Info;
+Info = PARECON.DataInfo;
 IMG.ExpPars = Info.ExpPars;
 
 Panel(1,:) = {'','','Output'};

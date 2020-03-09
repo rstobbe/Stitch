@@ -1,7 +1,7 @@
-classdef RwsImageRecon < handle
+classdef GpuInterface < handle
 
     properties (SetAccess = private)                    
-        NumGpuUsed; GpuParams;       
+        GpuParams; NumGpuUsed; ChanPerGpu;       
         HSampDat; SampDatMemDims;
         HReconInfo; ReconInfoMemDims;
         HKernel; iKern; KernHw; KernelMemDims; ConvScaleVal;
@@ -11,23 +11,21 @@ classdef RwsImageRecon < handle
         HFourierTransformPlan;
         HInvFilt;
         HSuperFilt; HSuperLow; HSuperLowConj; HSuperLowSoS; HSuperHighSoS;        
-        ChanPerGpu;
     end
     methods 
 
 %==================================================================
+% Constructor
+%==================================================================   
+        function RECON = GpuInterface()
+        end        
+        
+%==================================================================
 % Init
 %==================================================================   
-        function RECON = RwsImageRecon(NumGpuUsed,GpuParams)
+        function InitGpuInterface(RECON,NumGpuUsed,GpuParams,ChanPerGpu)
             RECON.NumGpuUsed = uint64(NumGpuUsed);
             RECON.GpuParams = GpuParams;
-        end
-
-%==================================================================
-% SetChanPerGpu
-%   - Number of channel/images-created within each GPU 
-%==================================================================         
-        function SetChanPerGpu(RECON,ChanPerGpu)
             RECON.ChanPerGpu = ChanPerGpu;
         end
 
@@ -261,20 +259,10 @@ classdef RwsImageRecon < handle
             if ~isa(SampDat,'single')
                 error('SampDat must be in single format');
             end       
-            sz = size(SampDat);
-            for n = 1:length(sz)
-                if sz(n) ~= RECON.SampDatMemDims(n)
-                    error('SampDat dimensionality problem');  
-                end
-            end
-            if isreal(SampDat)
-                %error('SampDat must be complex');
-                SampDat = complex(SampDat);
-            end
             if str2double(RECON.GpuParams.ComputeCapability) == 7.5
-                [Error] = LoadSampDatGpuMemAsync75(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
+                [Error] = LoadSampDatGpuMemAsyncRI75(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
             elseif str2double(RECON.GpuParams.ComputeCapability) == 6.1
-                [Error] = LoadSampDatGpuMemAsync61(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
+                [Error] = LoadSampDatGpuMemAsyncRI61(LoadGpuNum,RECON.HSampDat(GpuChanNum,:),SampDat);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);

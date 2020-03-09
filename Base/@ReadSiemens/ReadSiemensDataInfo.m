@@ -126,10 +126,11 @@ Info.TrajName = ExpPars.TrajName;
 Info.TrajImpName = ExpPars.TrajImpName;
 Info.RxChannels = Dims.NCha;
 
-DATA.Hdr = Hdr;
-DATA.Dims = Dims;
-DATA.Mem = Mem;
-DATA.Info = Info;
+DATA.DataHdr = Hdr;
+DATA.DataDims = Dims;
+DATA.DataMem = Mem;
+DATA.DataInfo = Info;
+DATA.RxChannels = Dims.NCha;
 
 end
 
