@@ -5,6 +5,7 @@
 classdef ImageRecon < GpuInterface
 
     properties (SetAccess = private)                    
+        % General
         TrajData;
         ZeroFill;
         NumRuns;
@@ -17,6 +18,10 @@ classdef ImageRecon < GpuInterface
         ReconPars;
         ReconFile;
         ReconPath;
+        GridMethod = 'GridDatFileStandard';
+        % GridDatFileUserMash
+        UserMashFile;
+        UserMash;
     end
     methods 
 
@@ -47,11 +52,26 @@ classdef ImageRecon < GpuInterface
         end             
 
 %==================================================================
-% GriddingTest
+% GridDatFileStandard
 %==================================================================   
-        function GriddingTest(PARECON)
-            GriddingTestFunc(PARECON);
+        function GridDatFileStandard(PARECON)
+            GridDatFileStandardFunc(PARECON);
         end 
+
+%==================================================================
+% GridDatFileUserMash
+%==================================================================   
+        function GridDatFileUserMash(PARECON)
+            GridDatFileUserMashFunc(PARECON);
+        end         
+
+%==================================================================
+% LoadUserMashFromFile
+%==================================================================   
+        function LoadUserMashFromFile(PARECON,UserMashFile)
+            PARECON.UserMashFile = UserMashFile; 
+            GridDatFileUserMashFunc(PARECON);
+        end            
         
     end  
 end
