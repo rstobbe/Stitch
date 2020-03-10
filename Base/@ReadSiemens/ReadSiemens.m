@@ -61,7 +61,7 @@ classdef ReadSiemens < handle
             QDataCha = DATA.DataDims.NCha;
             QDataBlockSize = DATA.DataBlockSize;
             QDataInfo = uint64([QDataReadSize QDataStart QDataCol QDataCha QDataBlockSize]); 
-            DATA.Data = BuildDataArray([DATA.DataPath,DATA.DataFile],QDataMemPosArr,QDataInfo);   
+            DATA.Data = BuildDataArray([DATA.DataPath,DATA.DataFile],QDataMemPosArr,QDataInfo);
         end          
     end
 end

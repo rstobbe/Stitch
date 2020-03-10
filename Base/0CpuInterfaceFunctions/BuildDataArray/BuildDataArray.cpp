@@ -21,9 +21,8 @@ size_t buflen;
 buflen = mxGetN(prhs[0]) + 1;
 DataFile = (char*)mxMalloc(buflen);
 mxGetString(prhs[0],DataFile,(mwSize)buflen);
-// mexPrintf("The DataFile is:  %s\n", DataFile);
 
-mwSize *DataMemPosArr;
+unsigned long long *DataMemPosArr;
 DataMemPosArr = mxGetUint64s(prhs[1]);
 const mwSize *temp;
 temp = mxGetDimensions(prhs[1]);
@@ -68,7 +67,7 @@ if (pFile==NULL) {
 float *ReadArray;
 ReadArray = (float*)mxMalloc(sizeof(float)*DataReadSize*DataCha);
 for (int i=0;i<DataMemPosArrLen;i++){
-    fseek(pFile,DataMemPosArr[i],SEEK_SET);
+    _fseeki64(pFile,DataMemPosArr[i],SEEK_SET);
     fread(ReadArray,sizeof(float),DataReadSize*DataCha,pFile);
     for (int j=0;j<DataCha;j++){
         for (int k=0;k<DataCol;k++){
@@ -78,7 +77,6 @@ for (int i=0;i<DataMemPosArrLen;i++){
 }
 
 fclose (pFile);
-// mexPrintf("File Closed\n");
 mxFree(DataFile);
 mxFree(ReadArray);
 
