@@ -2,7 +2,7 @@
 % 
 %==================================================
 
-function GridDatFileSpecifyTrajFunc(PARECON)
+function GridDatFileUserMashFunc(PARECON)
 
 %--------------------------------------
 % Allocate memory (on all GPUs)

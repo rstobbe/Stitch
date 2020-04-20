@@ -9,6 +9,9 @@ function PARECON = InitializeImageReconFunc(PARECON)
 %--------------------------------------
 GpuTot = gpuDeviceCount;
 addpath(PARECON.ReconPath);
+if not(exist(PARECON.ReconFile,'file'))
+    error(['Abort - ReconFile: ',PARECON.ReconFile,' does not exist']);
+end
 ReconInfoFunc = str2func(PARECON.ReconFile);
 ReconInfo = ReconInfoFunc(PARECON.DataInfo,GpuTot);
 PARECON.ReconInfo = ReconInfo;
@@ -86,6 +89,14 @@ PARECON.NumTraj = PROJimp.nproj;
 PARECON.Dummies = IMP.dummies;
 PARECON.SampStart = KSMP.SampStart;
 PARECON.SampEnd = PARECON.SampStart+PARECON.NumCol-1;
+
+%--------------------------------------
+% Determine Number of Averages
+%--------------------------------------
+PARECON.NumAverages = PARECON.DataDims.Lin/PARECON.NumTraj;
+if round(PARECON.NumAverages)*PARECON.NumTraj ~= PARECON.DataDims.Lin
+    error
+end
 
 %--------------------------------------
 % Set DataBlockSize

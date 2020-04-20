@@ -11,6 +11,7 @@ classdef ImageRecon < GpuInterface
         NumRuns;
         NumCol;
         NumTraj;
+        NumAverages;
         SampStart;
         SampEnd;
         Dummies;
@@ -52,25 +53,23 @@ classdef ImageRecon < GpuInterface
         end             
 
 %==================================================================
-% GridDatFileStandard
+% GridDatFile
 %==================================================================   
-        function GridDatFileStandard(PARECON)
-            GridDatFileStandardFunc(PARECON);
-        end 
-
-%==================================================================
-% GridDatFileUserMash
-%==================================================================   
-        function GridDatFileUserMash(PARECON)
-            GridDatFileUserMashFunc(PARECON);
-        end         
+        function GridDatFile(PARECON)
+            if isempty(PARECON.UserMash)
+                GridDatFileStandardFunc(PARECON);
+            else
+                GridDatFileUserMashFunc(PARECON);
+            end
+        end               
 
 %==================================================================
 % LoadUserMashFromFile
 %==================================================================   
         function LoadUserMashFromFile(PARECON,UserMashFile)
             PARECON.UserMashFile = UserMashFile; 
-            GridDatFileUserMashFunc(PARECON);
+            LoadUserMashFromFileFunc(PARECON);
+            PARECON.GridMethod = 'GridDatFileUserMash';
         end            
         
     end  

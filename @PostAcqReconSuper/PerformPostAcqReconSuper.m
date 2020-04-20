@@ -23,7 +23,7 @@ PARECON.AllocateSuperMatricesGpuMem;
 %--------------------------------------
 % Grid
 %--------------------------------------  
-PARECON.GridDatFileStandard;
+PARECON.GridDatFile;
 
 %--------------------------------------
 % Fourier Transform

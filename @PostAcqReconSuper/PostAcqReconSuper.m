@@ -2,7 +2,7 @@
 %  
 %================================================================
 
-classdef PostAcqReconSuperV2a < ReadSiemens & ImageRecon
+classdef PostAcqReconSuper < ReadSiemens & ImageRecon
 
     properties (SetAccess = private)                    
         Method;
@@ -16,13 +16,13 @@ classdef PostAcqReconSuperV2a < ReadSiemens & ImageRecon
 %==================================================================
 % Constructor
 %==================================================================   
-        function PARECON = PostAcqReconSuperV2a(DataFile)
+        function PARECON = PostAcqReconSuper(DataFile)
             PARECON@ReadSiemens;
             PARECON@ImageRecon;
             PARECON.DefineDataFile(DataFile);
             disp('Read Siemens Header');
             PARECON.ReadSiemensHeader;
-            PARECON.Method = 'PostAcqReconSuperV2a';
+            PARECON.Method = 'PostAcqReconSuper';
         end                   
 
 %==================================================================
