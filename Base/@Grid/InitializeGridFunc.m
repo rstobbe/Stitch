@@ -4,49 +4,7 @@
 
 function PARECON = InitializeImageReconFunc(PARECON)
 
-%--------------------------------------
-% Load ReconInfo
-%--------------------------------------
-GpuTot = gpuDeviceCount;
-addpath(PARECON.ReconPath);
-if not(exist(PARECON.ReconFile,'file'))
-    error(['Abort - ReconFile: ',PARECON.ReconFile,' does not exist']);
-end
-ReconInfoFunc = str2func(PARECON.ReconFile);
-ReconInfo = ReconInfoFunc(PARECON.DataInfo,GpuTot);
-PARECON.ReconInfo = ReconInfo;
 
-%--------------------------------------
-% Initizize RwsImageRecon Object
-%--------------------------------------
-GpuParams = gpuDevice; 
-PARECON.InitGpuInterface(GpuTot,GpuParams,ReconInfo.ChanPerGpu);
-
-%--------------------------------------
-% Load Kernel
-%--------------------------------------
-disp('Retreive Kernel From HardDrive');
-load(ReconInfo.Kernel);
-KRNprms = saveData.KRNprms;
-iKern = round(1e9*(1/(KRNprms.res*KRNprms.DesforSS)))/1e9;
-Kern = KRNprms.Kern;
-chW = ceil(((KRNprms.W*KRNprms.DesforSS)-2)/2);                    
-if (chW+1)*iKern > length(Kern)
-    error;
-end
-disp('Load Kernel All GPUs');
-PARECON.LoadKernelGpuMem(Kern,iKern,chW,KRNprms.convscaleval);
-
-%--------------------------------------
-% Load Inverse Filter
-%--------------------------------------
-disp('Retreive InvFilt From HardDrive');
-load(ReconInfo.InvFilt);
-disp('Load InvFilt All GPUs');
-IFprms = saveData.IFprms;
-ZF = IFprms.ZF;
-InvFilt = IFprms.V;
-PARECON.LoadInvFiltGpuMem(InvFilt);
 
 %--------------------------------------
 % Load Trajectory
@@ -145,11 +103,5 @@ PARECON.NumRuns = ceil(sz(2)/PARECON.DataBlockSize);
 PARECON.TrajData = C*ones([sz(1),PARECON.NumRuns*PARECON.DataBlockSize,4],'single');
 PARECON.TrajData(:,1:sz(2),:) = TrajData0;
 
-%---------------------------------------------
-% Return Image Size / Setup FFT
-%---------------------------------------------
-disp('Setup Fourier Transform');
-PARECON.ZeroFill = [ZF ZF ZF];
-PARECON.SetupFourierTransform(PARECON.ZeroFill);
 
 

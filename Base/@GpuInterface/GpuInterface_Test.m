@@ -18,15 +18,14 @@ classdef GpuInterface < handle
 % Constructor
 %==================================================================   
         function obj = GpuInterface()
-            obj.GpuParams = gpuDevice; 
-            obj.NumGpuUsed = uint64(gpuDeviceCount);
         end        
         
 %==================================================================
 % Init
 %==================================================================   
-        function InitGpuInterface(obj,NumGpuUsed,ChanPerGpu)
+        function InitGpuInterface(obj,NumGpuUsed,GpuParams,ChanPerGpu)
             obj.NumGpuUsed = uint64(NumGpuUsed);
+            obj.GpuParams = GpuParams;
             obj.ChanPerGpu = ChanPerGpu;
         end
 
@@ -214,7 +213,7 @@ classdef GpuInterface < handle
                 end
             end
             obj.SampDatMemDims = uint64(SampDatMemDims);
-            obj.HSampDat = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
+            obj.HSampDat = zeros([obj.NumGpuUsed,obj.NumGpuUsed],'uint64');
             for n = 1:obj.ChanPerGpu
                 if str2double(obj.GpuParams.ComputeCapability) == 7.5
                     [obj.HSampDat(n,:),Error] = AllocateSampDatGpuMem75(obj.NumGpuUsed,obj.SampDatMemDims);
@@ -261,10 +260,8 @@ classdef GpuInterface < handle
                 error('SampDat must be in single format');
             end       
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
-                %[Error] = LoadSampDatGpuMemAsync75(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);                  % complex data
-                [Error] = LoadSampDatGpuMemAsyncRI75(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);               % interleaved but not officially 'complex'             
+                [Error] = LoadSampDatGpuMemAsyncRI75(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
-                %[Error] = LoadSampDatGpuMemAsync61(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
                 [Error] = LoadSampDatGpuMemAsyncRI61(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
             end
             if not(strcmp(Error,'no error'))
@@ -284,12 +281,10 @@ classdef GpuInterface < handle
                 for n = 1:obj.ChanPerGpu
                     [obj.HImageMatrix(n,:),Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
-                        MaxChanPerGpu = n
                         error(Error);
                     end
                     [obj.HKspaceMatrix(n,:),Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
-                        MaxChanPerGpu = n
                         error(Error);
                     end
                 end
@@ -453,24 +448,6 @@ classdef GpuInterface < handle
             end
         end 
 
-%==================================================================
-% ReturnOneRealMatrixGpuMemSpecify
-%================================================================== 
-        function ImageMatrix = ReturnOneRealMatrixGpuMemSpecify(obj,ImageMatrix,GpuNum,Image)
-            if GpuNum > obj.NumGpuUsed-1
-                error('Specified ''GpuNum'' beyond number of GPUs used');
-            end
-            GpuNum = uint64(GpuNum);
-            if str2double(obj.GpuParams.ComputeCapability) == 7.5
-                [ImageMatrix,Error] = ReturnRealMatrixSingleGpu75(GpuNum,Image,obj.ImageMatrixMemDims);
-            elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
-                [ImageMatrix,Error] = ReturnRealMatrixSingleGpu61(GpuNum,Image,obj.ImageMatrixMemDims);
-            end
-            if not(strcmp(Error,'no error'))
-                error(Error);
-            end
-        end         
-        
 %==================================================================
 % ReturnOneImageMatrixGpuMemSpecify
 %================================================================== 
