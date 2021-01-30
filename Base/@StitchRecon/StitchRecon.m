@@ -18,9 +18,9 @@ classdef StitchRecon < handle
         end   
 
 %==================================================================
-% StitchBasicInit
+% StitchInit
 %==================================================================   
-        function StitchBasicInit(obj,StitchMetaData,log)
+        function StitchInit(obj,StitchMetaData,log)
             obj.StitchMetaData = StitchMetaData;
             
             %------------------------------------------------------
@@ -33,7 +33,7 @@ classdef StitchRecon < handle
             %------------------------------------------------------
             % Reset GPUs (if requested)
             %------------------------------------------------------
-            if StitchMetaData.ResetGpus
+            if obj.StitchMetaData.ResetGpus
                 log.info('Reset GPUs');
                 GpuTot = gpuDeviceCount;
                 for n = 1:GpuTot
@@ -53,7 +53,7 @@ classdef StitchRecon < handle
             %------------------------------------------------------
             func = str2func(obj.StitchMetaData.ReconFunction);
             obj.Recon = func();
-            obj.Recon.StitchBasicInit(obj.StitchMetaData,ReconInfoMat,log);
+            obj.Recon.StitchInit(obj.StitchMetaData,ReconInfoMat,log);
         end           
 
 %==================================================================
@@ -83,8 +83,8 @@ classdef StitchRecon < handle
 %==================================================================
 % StitchGridInit
 %==================================================================           
-        function StitchGridInit(obj,log) 
-            obj.Recon.StitchGridInit(log);
+        function StitchGridInit(obj,DataObj,log) 
+            obj.Recon.StitchGridInitTop(DataObj,log);
         end
             
 %==================================================================
@@ -110,8 +110,8 @@ classdef StitchRecon < handle
 %==================================================================
 % StitchPostAcqProcess
 %================================================================== 
-        function StitchPostAcqProcess(obj,log)
-            obj.Recon.StitchPostAcqProcess(log);
+        function StitchPostAcqProcess(obj,DataObj,log)
+            obj.Recon.StitchPostAcqProcess(DataObj,log);
         end 
         
 %==================================================================
@@ -151,7 +151,8 @@ classdef StitchRecon < handle
                 obj.StitchMetaData.NumTraj = IMP.PROJimp.nproj;
                 obj.StitchMetaData.NumCol = IMP.KSMP.nproRecon;
                 obj.StitchMetaData.SampStart = IMP.KSMP.DiscardStart+1;
-                obj.StitchMetaData.SampEnd = obj.StitchMetaData.SampStart+obj.StitchMetaData.NumCol-1;           
+                obj.StitchMetaData.SampEnd = obj.StitchMetaData.SampStart+obj.StitchMetaData.NumCol-1;  
+                obj.StitchMetaData.Fov = IMP.PROJdgn.fov;
             else
                 ReconInfoMat = IMP.ReconInfoMat;
                 obj.StitchMetaData.kMaxRad = IMP.kMaxRad;

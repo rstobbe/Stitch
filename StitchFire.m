@@ -2,7 +2,7 @@
 %  
 %================================================================
 
-classdef StitchFire < handle & StitchRecon
+classdef StitchFire < StitchRecon & ReturnImage
     
     properties (SetAccess = private)                    
     end    
@@ -13,10 +13,11 @@ classdef StitchFire < handle & StitchRecon
 %==================================================================   
         function obj = StitchFire(RwsFireServer,log)
             
+            log.info("Starting StitchFire")
             %------------------------------------------------------
             % Build Objects
             %------------------------------------------------------            
-            obj@StitchRecon(log);
+            obj@StitchRecon();
             
             %------------------------------------------------------
             % SiemensMetaData
@@ -33,8 +34,12 @@ classdef StitchFire < handle & StitchRecon
             % Interpret RwsFireServer -> Stitch
             %------------------------------------------------------            
             StitchMetaData.DataSource = 'Fire';
-            StitchMetaData.PullReconLocal = 1;                              
-            StitchMetaData.Protocol = ['R',RwsFireServer.MetaData.measurementInformation.protocolName];
+            if RwsFireServer.TrajDims == 0
+                StitchMetaData.PullReconLocal = 1;
+            else
+                error('finish')
+            end
+            StitchMetaData.ReconProtocol = ['R',RwsFireServer.MetaData.measurementInformation.protocolName];
             StitchMetaData.RxChannels = RwsFireServer.MetaData.acquisitionSystemInformation.receiverChannels;
             StitchMetaData = InterpTrajSiemens(obj,StitchMetaData,RwsFireServer.MetaData);
             StitchMetaData.BlockLength = RwsFireServer.AcqsPerPortRead;
@@ -42,60 +47,42 @@ classdef StitchFire < handle & StitchRecon
             %------------------------------------------------------
             % Initialize StitchRecon
             %------------------------------------------------------                 
-            obj.StitchReconInit(StitchMetaData,log);
+            obj.StitchInit(StitchMetaData,log);
+            obj.UpdateTestStitchMetaData(struct(),log); 
+            
+            %------------------------------------------------------
+            % Port Update
+            %------------------------------------------------------  
+            PortUpdate.AcqsPerPortRead = obj.StitchMetaData.BlockLength;
+            PortUpdate.TotalAcqs = obj.StitchMetaData.Nproj + obj.StitchMetaData.Dummies;
+            PortUpdate.DummyAcqs = obj.StitchMetaData.Dummies;
+            PortUpdate.SampStart = obj.StitchMetaData.SampStart;
+            PortUpdate.SampEnd = obj.StitchMetaData.SampEnd;
+            PortUpdate.NumCol = obj.StitchMetaData.npro;
+            RwsFireServer.InitRwsPortControl(PortUpdate);
+            obj.Initialize(RwsFireServer,log);        
         end 
 
 %==================================================================
-% ProcessData
+% Initialize
 %==================================================================   
-        function ProcessData(obj,RwsFireServer,log)
-
-            %------------------------------------------------------
-            % Organize Data from Port
-            %------------------------------------------------------                  
-            obj.StitchMethod.InitializeDataBlock;  
-            Ptr = 1;
-            for n = 1:obj.StitchMetaData.BlockLength
-                DataBytes = RwsFireServer.PortData(Ptr:(Ptr+RwsFireServer.DataLength-1));
-                Data0 = typecast(DataBytes,'single'); 
-                dims = [RwsFireServer.DataHeader.number_of_samples,RwsFireServer.DataHeader.active_channels];
-                DataFull = reshape(Data0(1:2:end) + 1j*Data0(2:2:end), dims);
-%                 figure(999998); 
-%                 plot(abs(DataFull(:,1)))
-                DataUsed = DataFull(obj.StitchMetaData.SampStart:obj.StitchMetaData.SampEnd,:);
-%                 figure(999999); 
-%                 plot(abs(DataUsed(:,1)))
-                obj.StitchMethod.WriteDataBlock(DataUsed,n);    
-                Ptr = Ptr + RwsFireServer.DataLength;
-                if Ptr+1 > length(RwsFireServer.PortData)
-                    if obj.StitchMethod.TrajCounter ~= obj.StitchMetaData.Nproj
-                        error('Data Parsing Problem');
-                    end
-                end
-                if Ptr > length(RwsFireServer.PortData)
-                    break
-                end
-                Id = typecast(RwsFireServer.PortData(Ptr:(Ptr+RwsFireServer.IdentifierLength-1)),'uint16');
-                if Id ~= constants.MRD_MESSAGE_ISMRMRD_ACQUISITION
-                    error('Data Parsing Problem');
-                end
-                Ptr = Ptr + RwsFireServer.IdentifierLength;
-%                 HeaderBytes = RwsFireServer.PortData(Ptr:(Ptr+RwsFireServer.HeaderLength-1));
-%                 Header = ismrmrd.AcquisitionHeader(uint8(HeaderBytes));
-                Ptr = Ptr + RwsFireServer.HeaderLength;  
-            end
-            
-            %------------------------------------------------------
-            % Process
-            %------------------------------------------------------   
-            obj.StitchProcessData(log);
+        function Initialize(obj,RwsFireServer,log)              
+            obj.StitchGridInit(RwsFireServer,log);     
+        end
+        
+%==================================================================
+% IntraAcqProcess
+%==================================================================   
+        function IntraAcqProcess(obj,RwsFireServer,log)              
+            RwsFireServer.CreateDataObject(log);
+            obj.StitchIntraAcqProcess(RwsFireServer,log);
         end
 
 %==================================================================
-% Finish
+% PostAcqProcess
 %==================================================================   
-        function Finish(obj,log)
-            obj.StitchFinish(log);
+        function PostAcqProcess(obj,RwsFireServer,log)
+            obj.StitchPostAcqProcess(log);
         end
         
 %==================================================================
@@ -141,13 +128,21 @@ classdef StitchFire < handle & StitchRecon
             StitchMetaData.p = p;
             StitchMetaData.id = id;
         end
-        
+
 %==================================================================
 % ReturnImage
+%==================================================================   
+        function Image = ReturnImage(obj,log)
+            Image = obj.StitchReturnImage(log);
+        end            
+        
+%==================================================================
+% ReturnIsmrmImage
 %==================================================================  
-        function IsmrmImage = ReturnImage(obj,log)
+        function IsmrmImage = ReturnIsmrmImage(obj,log)
 
-            Image = abs(obj.StitchMethod.Image);
+            Image = obj.StitchReturnImage(log);
+            Image = abs(Image);
             Image = Image/max(Image(:));
             
 %             Image = zeros(size(Image));
@@ -166,9 +161,9 @@ classdef StitchFire < handle & StitchRecon
             IsmrmImage.data_ = Image;                           % RWS - Note I made a change inside the ISMRMRD 'Image' class
             %================================================
             % In MATLAB's ISMRMD toolbox, header information is not updated after setting image data
-            IsmrmImage.head_.matrix_size(1) = uint16(size(obj.StitchMethod.Image,1));
-            IsmrmImage.head_.matrix_size(2) = uint16(size(obj.StitchMethod.Image,2));
-            IsmrmImage.head_.matrix_size(3) = uint16(size(obj.StitchMethod.Image,3));
+            IsmrmImage.head_.matrix_size(1) = uint16(size(obj.Recon.Image,1));
+            IsmrmImage.head_.matrix_size(2) = uint16(size(obj.Recon.Image,2));
+            IsmrmImage.head_.matrix_size(3) = uint16(size(obj.Recon.Image,3));
             IsmrmImage.head_.channels       = uint16(1);
             IsmrmImage.head_.data_type      = uint16(ismrmrd.ImageHeader.DATA_TYPE.SHORT);
             IsmrmImage.head_.image_index    = uint16(1);  % This field is mandatory

@@ -22,7 +22,7 @@ classdef StitchSiemensLocal < StitchRecon
             ReconMetaData.DataSource = 'SiemensLocal';
             ReconMetaData.PullReconLocal = 0;               % already read 
             ReconMetaData.LoadTrajLocal = 1;
-            obj.StitchBasicInit(ReconMetaData,log); 
+            obj.StitchInit(ReconMetaData,log); 
         end
         
 %==================================================================
@@ -34,8 +34,14 @@ classdef StitchSiemensLocal < StitchRecon
             ReconMetaData.RxChannels = RwsSiemensHandler.DataDims.NCha;
             ReconMetaData = InterpTrajSiemens(obj,ReconMetaData,sWipMemBlock);   
             obj.UpdateTestStitchMetaData(ReconMetaData,log);
-            obj.StitchGridInit(log);
         end
+
+%==================================================================
+% LocalDataBlockInit
+%==================================================================          
+        function LocalDataBlockInit(obj,RwsSiemensHandler,log)
+            obj.StitchGridInit(RwsSiemensHandler,log);
+        end  
 
 %==================================================================
 % GetDataReadInfo
@@ -58,7 +64,7 @@ classdef StitchSiemensLocal < StitchRecon
 % PostAcqProcess
 %==================================================================   
         function PostAcqProcess(obj,RwsSiemensHandler,log)
-            obj.StitchPostAcqProcess(log);
+            obj.StitchPostAcqProcess(RwsSiemensHandler,log);
         end
         
 %==================================================================

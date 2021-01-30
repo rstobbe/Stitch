@@ -75,9 +75,9 @@ classdef StitchReconSuper < Grid
         end        
         
 %==================================================================
-% StitchIntraAcqProcess
+% StitchGridDataBlock
 %================================================================== 
-        function StitchIntraAcqProcess(obj,DataObj,log)           
+        function StitchGridDataBlock(obj,DataObj,log)           
             if obj.StitchMetaData.LoadTrajLocal == 1
                 Start = DataObj.DataBlockAcqStartNumber;
                 Stop = DataObj.DataBlockAcqStopNumber;
@@ -94,9 +94,9 @@ classdef StitchReconSuper < Grid
         end
         
 %==================================================================
-% StitchPostAcqProcess
+% StitchFftCombine
 %================================================================== 
-        function StitchPostAcqProcess(obj,log)
+        function StitchFftCombine(obj,log)
             obj.GridFinish(log);
 
             %---------------------------------------------

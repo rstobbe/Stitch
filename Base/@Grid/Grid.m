@@ -12,7 +12,7 @@ classdef Grid < GpuInterface
         kSz;
         kShift;
         kStep;
-        DataArray;
+        %DataArray;
         NumTraj;
         RxChannels;
     end
@@ -73,7 +73,7 @@ classdef Grid < GpuInterface
             end 
             obj.kStep = obj.StitchMetaData.kStep;
             obj.kShift = (obj.StitchMetaData.ZeroFill/2+1)-((obj.kSz+1)/2);
-            obj.DataArray = obj.StitchMetaData.SampStart:obj.StitchMetaData.SampEnd;
+            %obj.DataArray = obj.StitchMetaData.SampStart:obj.StitchMetaData.SampEnd;
             obj.NumTraj = obj.StitchMetaData.NumTraj;
             obj.RxChannels = obj.StitchMetaData.RxChannels; 
             
