@@ -5,6 +5,7 @@
 classdef StitchFire < StitchRecon & ReturnImage
     
     properties (SetAccess = private)                    
+        ReconHandlerName = 'StitchFire';
     end    
     methods
 
@@ -54,12 +55,10 @@ classdef StitchFire < StitchRecon & ReturnImage
             % Port Update
             %------------------------------------------------------  
             PortUpdate.AcqsPerPortRead = obj.StitchMetaData.BlockLength;
-            PortUpdate.TotalAcqs = obj.StitchMetaData.Nproj + obj.StitchMetaData.Dummies;
-            PortUpdate.DummyAcqs = obj.StitchMetaData.Dummies;
             PortUpdate.SampStart = obj.StitchMetaData.SampStart;
             PortUpdate.SampEnd = obj.StitchMetaData.SampEnd;
             PortUpdate.NumCol = obj.StitchMetaData.npro;
-            RwsFireServer.InitRwsPortControl(PortUpdate);
+            RwsFireServer.InitStitchPortControl(PortUpdate);
             obj.Initialize(RwsFireServer,log);        
         end 
 
@@ -67,7 +66,7 @@ classdef StitchFire < StitchRecon & ReturnImage
 % Initialize
 %==================================================================   
         function Initialize(obj,RwsFireServer,log)              
-            obj.StitchGridInit(RwsFireServer,log);     
+            obj.StitchDataProcessInit(RwsFireServer,log);     
         end
         
 %==================================================================
@@ -82,7 +81,7 @@ classdef StitchFire < StitchRecon & ReturnImage
 % PostAcqProcess
 %==================================================================   
         function PostAcqProcess(obj,RwsFireServer,log)
-            obj.StitchPostAcqProcess(log);
+            obj.StitchPostAcqProcess(RwsFireServer,log);
         end
         
 %==================================================================
@@ -144,15 +143,6 @@ classdef StitchFire < StitchRecon & ReturnImage
             Image = obj.StitchReturnImage(log);
             Image = abs(Image);
             Image = Image/max(Image(:));
-            
-%             Image = zeros(size(Image));
-%             Image(50,50,50) = 1;
-%             test = isnan(Image);
-%             test = sum(test(:))
-%             figure(2346234);
-%             imshow(Image(:,:,5),[0 0.02]);
-%             error('stop')
-            
             Image = Image .* (32767./max(Image(:)));
             Image = int16(round(Image));            
             

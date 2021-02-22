@@ -40,7 +40,7 @@ classdef StitchSiemensLocal < StitchRecon
 % LocalDataBlockInit
 %==================================================================          
         function LocalDataBlockInit(obj,RwsSiemensHandler,log)
-            obj.StitchGridInit(RwsSiemensHandler,log);
+            obj.StitchDataProcessInit(RwsSiemensHandler,log);
         end  
 
 %==================================================================

@@ -81,10 +81,10 @@ classdef StitchRecon < handle
         end        
         
 %==================================================================
-% StitchGridInit
+% StitchDataProcessInit
 %==================================================================           
-        function StitchGridInit(obj,DataObj,log) 
-            obj.Recon.StitchGridInitTop(DataObj,log);
+        function StitchDataProcessInit(obj,DataObj,log) 
+            obj.Recon.StitchReconDataProcessInit(DataObj,log);
         end
             
 %==================================================================
@@ -135,24 +135,24 @@ classdef StitchRecon < handle
             % Check File type
             %------------------------------------------------------ 
             if isfield(IMP,'Kmat')
-                log.info('Arrange Trajectory Info Into Proper Format');                                   
-                KspaceMat0 = permute(IMP.Kmat,[2 1 3]);
-                KspaceMat = KspaceMat0;
-                KspaceMat(:,:,1) = KspaceMat0(:,:,2);
-                KspaceMat(:,:,2) = KspaceMat0(:,:,1);
-                KspaceMat(:,:,3) = KspaceMat0(:,:,3);
-                SampDensComp = permute(IMP.SDC,[2 1]);
-                ReconInfoMat = cat(3,KspaceMat,SampDensComp);
-                kRad = sqrt(KspaceMat(:,:,1).^2 + KspaceMat(:,:,2).^2 + KspaceMat(:,:,3).^2);
-                obj.StitchMetaData.kMaxRad = max(kRad(:));
-                obj.StitchMetaData.kStep = IMP.PROJdgn.kstep;               
-                obj.StitchMetaData.npro = IMP.PROJimp.npro;
-                obj.StitchMetaData.Dummies = IMP.dummies;
-                obj.StitchMetaData.NumTraj = IMP.PROJimp.nproj;
-                obj.StitchMetaData.NumCol = IMP.KSMP.nproRecon;
-                obj.StitchMetaData.SampStart = IMP.KSMP.DiscardStart+1;
-                obj.StitchMetaData.SampEnd = obj.StitchMetaData.SampStart+obj.StitchMetaData.NumCol-1;  
-                obj.StitchMetaData.Fov = IMP.PROJdgn.fov;
+%                 log.info('Arrange Trajectory Info Into Proper Format');                                   
+%                 KspaceMat0 = permute(IMP.Kmat,[2 1 3]);
+%                 KspaceMat = KspaceMat0;
+%                 KspaceMat(:,:,1) = KspaceMat0(:,:,2);
+%                 KspaceMat(:,:,2) = KspaceMat0(:,:,1);
+%                 KspaceMat(:,:,3) = KspaceMat0(:,:,3);
+%                 SampDensComp = permute(IMP.SDC,[2 1]);
+%                 ReconInfoMat = cat(3,KspaceMat,SampDensComp);
+%                 kRad = sqrt(KspaceMat(:,:,1).^2 + KspaceMat(:,:,2).^2 + KspaceMat(:,:,3).^2);
+%                 obj.StitchMetaData.kMaxRad = max(kRad(:));
+%                 obj.StitchMetaData.kStep = IMP.PROJdgn.kstep;               
+%                 obj.StitchMetaData.npro = IMP.PROJimp.npro;
+%                 obj.StitchMetaData.Dummies = IMP.dummies;
+%                 obj.StitchMetaData.NumTraj = IMP.PROJimp.nproj;
+%                 obj.StitchMetaData.NumCol = IMP.KSMP.nproRecon;
+%                 obj.StitchMetaData.SampStart = IMP.KSMP.DiscardStart+1;
+%                 obj.StitchMetaData.SampEnd = obj.StitchMetaData.SampStart+obj.StitchMetaData.NumCol-1;
+                error('redo recon file');
             else
                 ReconInfoMat = IMP.ReconInfoMat;
                 obj.StitchMetaData.kMaxRad = IMP.kMaxRad;
@@ -163,9 +163,8 @@ classdef StitchRecon < handle
                 obj.StitchMetaData.NumCol = IMP.NumCol;
                 obj.StitchMetaData.SampStart = IMP.SampStart;
                 obj.StitchMetaData.SampEnd = IMP.SampEnd;
-                %----
-                obj.StitchMetaData.Fov = 300;               % hacked in - add to IMP
-                %----
+                obj.StitchMetaData.Fov = IMP.Fov;
+                obj.StitchMetaData.Vox = IMP.Vox;
             end
         end             
     end

@@ -46,44 +46,54 @@ classdef StitchReconSimple < Grid
         end
 
 %==================================================================
+% AddToStitchMetaData
+%==================================================================          
+        function AddToStitchMetaData(obj,Field,Val)
+            for n = 1:length(Field)
+                obj.StitchMetaData.(Field{n}) = Val{n};
+            end
+        end         
+        
+%==================================================================
 % StitchGridInit
 %==================================================================           
         function StitchGridInit(obj,log) 
-
-            %---------------------------------------------
-            % Allocate Image Space on CPU
-            %---------------------------------------------
             NumExp = 1;
             log.info('Allocate CPU Memory');
-            obj.Image = complex(zeros([obj.ImageMatrixMemDims,NumExp,obj.StitchMetaData.RxChannels],'single'),zeros([obj.ImageMatrixMemDims,NumExp,obj.StitchMetaData.RxChannels],'single'));            
+            obj.Image = complex(zeros([obj.ImageMatrixMemDims,NumExp,obj.StitchMetaData.RxChannels],'single'),0);               
             obj.GridInitialize(log);  
         end        
         
 %==================================================================
-% StitchIntraAcqProcess
+% StitchGridDataBlock
 %================================================================== 
-        function StitchIntraAcqProcess(obj,DataObj,log)           
+        function StitchGridDataBlock(obj,DataObj,Info,log)           
             if obj.StitchMetaData.LoadTrajLocal == 1
-                Start = DataObj.DataBlockAcqStartNumber;
-                Stop = DataObj.DataBlockAcqStopNumber;
+                Start = Info.TrajAcqStart;
+                Stop = Info.TrajAcqStop;
                 if Stop-Start+1 == DataObj.DataBlockLength
-                    obj.GpuGrid(obj.ReconInfoMat(:,Start:Stop,:),DataObj.Data,log);
+                    obj.GpuGrid(obj.ReconInfoMat(:,Start:Stop,:),DataObj.DataBlock,log);
                 elseif Stop-Start+1 < DataObj.DataBlockLength
                     TempReconInfoMat = zeros(DataObj.NumCol,DataObj.DataBlockLength,4,'single');
                     TempReconInfoMat(:,1:Stop-Start+1,:) = obj.ReconInfoMat(:,Start:Stop,:);
-                    obj.GpuGrid(TempReconInfoMat,DataObj.Data,log);
+                    obj.GpuGrid(TempReconInfoMat,DataObj.DataBlock,log);
                 end
             else
-                obj.GpuGrid(DataObj.ReconInfoMat,DataObj.Data,log);
+                obj.GpuGrid(DataObj.ReconInfoMat,DataObj.DataBlock,log);
             end
         end
         
 %==================================================================
-% StitchPostAcqProcess
+% StitchFft
 %================================================================== 
-        function StitchPostAcqProcess(obj,log)
-            obj.GridFinish(log);
+        function StitchFft(obj,log)
+
+            %---------------------------------------------
+            % Fourier Transform
+            %---------------------------------------------      
             log.info('Fourier Transform');
+            Scale = 1e10;  % for Siemens (should come from above...)
+            Scale = Scale/(obj.SubSamp^3);
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -93,20 +103,22 @@ classdef StitchReconSimple < Grid
                     obj.InverseFourierTransform(GpuNum,GpuChan);
                     obj.ImageFourierTransformShift(GpuNum,GpuChan);          
                     obj.MultInvFilt(GpuNum,GpuChan); 
+                    obj.ScaleImage(GpuNum,GpuChan,Scale); 
                 end
             end
+            
+            %----------------------------------------------
+            % Return Images
+            %----------------------------------------------            
             log.info('Return Images from GPU');
-            Scale = 1e10;  % for Siemens (should come from above...)
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
                     GpuChan = p;
                     ChanNum = (p-1)*obj.NumGpuUsed+m;
-                    obj.ScaleImage(GpuNum,GpuChan,Scale); 
                     obj.Image(:,:,:,:,ChanNum) = obj.ReturnOneImageMatrixGpuMem(GpuNum,GpuChan);
                 end
             end
-            obj.FreeKspaceImageMatricesGpuMem;
             
             %----------------------------------------------
             % Return FoV
@@ -118,15 +130,35 @@ classdef StitchReconSimple < Grid
                 start = obj.ImageMatrixMemDims*(1-1/obj.SubSamp)/2+1;
                 stop = obj.ImageMatrixMemDims - obj.ImageMatrixMemDims*(1-1/obj.SubSamp)/2;
                 obj.Image = obj.Image(start(1):stop(1),start(2):stop(2),start(3):stop(3),:,:,:);
+            elseif strcmp(obj.StitchMetaData.ReturnFov,'HeadBig')
+                log.info('Return FoV');
+                FovWanted(1) = 260;
+                FovWanted(2) = 220;                 
+                FovWanted(3)= 220;
+                ImSize = size(obj.Image);
+                NewImSize = 2*round((FovWanted/(obj.StitchMetaData.Fov*obj.SubSamp)).*ImSize/2);
+                start = ImSize/2 - NewImSize/2 + 1;
+                stop = ImSize/2 + NewImSize/2;                
+                obj.Image = obj.Image(start(2):stop(2),start(1):stop(1),start(3):stop(3),:,:,:);
             else
                 error('unrecognized ''Return Fov''');
             end
         end        
-     
+
 %==================================================================
-% StitchReturnImage
+% StitchFreeGpuMemory
 %==================================================================           
-        function Image = StitchReturnImage(obj,log) 
+        function StitchFreeGpuMemory(obj,log) 
+            obj.ReleaseGriddingGpuMem;
+            if not(isempty(obj.HSuperFilt))
+                obj.FreeSuperMatricesGpuMem;
+            end
+        end          
+        
+%==================================================================
+% StitchReturnIndividualImages
+%==================================================================           
+        function Image = StitchReturnIndividualImages(obj,log) 
             Image = obj.Image;
             %--
             Image = permute(Image,[2 1 3 4 5 6 7]);             % this has gotta go...  (handle in k-space array...)

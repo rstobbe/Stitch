@@ -85,12 +85,6 @@ classdef Grid < GpuInterface
             ReconInfoSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.BlockLength 4];
             obj.AllocateReconInfoGpuMem(ReconInfoSize);                       
             SampDatSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.BlockLength];
-            if not(isempty(obj.HSampDat))
-                obj.FreeSampDatGpuMem;
-            end
-            if not(isempty(obj.HImageMatrix))
-                obj.FreeKspaceImageMatricesGpuMem;
-            end
             obj.AllocateSampDatGpuMem(SampDatSize);
             obj.AllocateKspaceImageMatricesGpuMem([obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill]);   % isotropic for now   
         end
@@ -136,24 +130,12 @@ classdef Grid < GpuInterface
         end        
                   
 %==================================================================
-% ReleaseGriddingGpuMem
+% GridFinish
 %==================================================================
-        function ReleaseGriddingGpuMem(obj,log)
-            if not(isempty(obj.HImageMatrix))
-                obj.FreeKspaceImageMatricesGpuMem;
-            end
-            if not(isempty(obj.HReconInfo))
-                obj.FreeReconInfoGpuMem;
-            end
-            if not(isempty(obj.HSampDat))
-                obj.FreeSampDatGpuMem;
-            end
-            if not(isempty(obj.HKernel))
-                obj.FreeKernelGpuMem;
-            end
-            if not(isempty(obj.HInvFilt))
-                obj.FreeInvFiltMem;
-            end
+        function GridFinish(obj,log)
+            obj.FreeReconInfoGpuMem;
+            obj.FreeSampDatGpuMem;
+            % free invfilt and kernel?
         end       
 
 %==================================================================

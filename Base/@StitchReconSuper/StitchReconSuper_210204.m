@@ -43,17 +43,21 @@ classdef StitchReconSuper < Grid
             %---------------------------------------------
             % Allocate Image Space on CPU
             %---------------------------------------------
+            NumExp = 1;
             log.info('Allocate CPU Memory');
-            obj.Image = complex(zeros([obj.ImageMatrixMemDims],'single'),0);
-            obj.ImageHighSoSArr = complex(zeros([obj.ImageMatrixMemDims,obj.NumGpuUsed],'single'),0);
-            obj.ImageLowSoSArr = complex(zeros([obj.ImageMatrixMemDims,obj.NumGpuUsed],'single'),0);
+            obj.Image = complex(zeros([obj.ImageMatrixMemDims,NumExp],'single'),zeros([obj.ImageMatrixMemDims,NumExp],'single'));
+            obj.ImageHighSoS = complex(zeros([obj.ImageMatrixMemDims,NumExp],'single'),zeros([obj.ImageMatrixMemDims,NumExp],'single'));
+            obj.ImageLowSoS = zeros([obj.ImageMatrixMemDims,NumExp],'single');
+            obj.ImageHighSoSArr = complex(zeros([obj.ImageMatrixMemDims,NumExp,obj.NumGpuUsed],'single'),zeros([obj.ImageMatrixMemDims,NumExp,obj.NumGpuUsed],'single'));
+            obj.ImageLowSoSArr = complex(zeros([obj.ImageMatrixMemDims,NumExp,obj.NumGpuUsed],'single'),zeros([obj.ImageMatrixMemDims,NumExp,obj.NumGpuUsed],'single'));
             
             %---------------------------------------------
             % Initialize Super
             %---------------------------------------------            
-            log.info('Create/Load Super Filter');
+            log.info('Initialize Super');
             obj.CreateLoadSuperFilter(obj.StitchMetaData,log);
             obj.LoadSuperFiltGpuMem(obj.SuperFilt);
+            obj.AllocateSuperMatricesGpuMem;
         end   
 
 %==================================================================
@@ -82,19 +86,19 @@ classdef StitchReconSuper < Grid
 %==================================================================
 % StitchGridDataBlock
 %================================================================== 
-        function StitchGridDataBlock(obj,DataObj,Info,log)           
+        function StitchGridDataBlock(obj,DataObj,log)           
             if obj.StitchMetaData.LoadTrajLocal == 1
-                Start = Info.TrajAcqStart;
-                Stop = Info.TrajAcqStop;
+                Start = DataObj.DataBlockAcqStartNumber;
+                Stop = DataObj.DataBlockAcqStopNumber;
                 if Stop-Start+1 == DataObj.DataBlockLength
-                    obj.GpuGrid(obj.ReconInfoMat(:,Start:Stop,:),DataObj.DataBlock,log);
+                    obj.GpuGrid(obj.ReconInfoMat(:,Start:Stop,:),DataObj.Data,log);
                 elseif Stop-Start+1 < DataObj.DataBlockLength
                     TempReconInfoMat = zeros(DataObj.NumCol,DataObj.DataBlockLength,4,'single');
                     TempReconInfoMat(:,1:Stop-Start+1,:) = obj.ReconInfoMat(:,Start:Stop,:);
-                    obj.GpuGrid(TempReconInfoMat,DataObj.DataBlock,log);
+                    obj.GpuGrid(TempReconInfoMat,DataObj.Data,log);
                 end
             else
-                obj.GpuGrid(DataObj.ReconInfoMat,DataObj.DataBlock,log);
+                obj.GpuGrid(DataObj.ReconInfoMat,DataObj.Data,log);
             end
         end
         
@@ -102,21 +106,13 @@ classdef StitchReconSuper < Grid
 % StitchFftCombine
 %================================================================== 
         function StitchFftCombine(obj,log)
+            obj.GridFinish(log);
 
-            %---------------------------------------------
-            % Initialize Summation Matrices
-            %---------------------------------------------                 
-            log.info('Initialize Super');
-            obj.ImageHighSoS = complex(zeros([obj.ImageMatrixMemDims],'single'),0);
-            obj.ImageLowSoS = zeros([obj.ImageMatrixMemDims],'single');            
-            obj.AllocateSuperMatricesGpuMem;
-            
             %---------------------------------------------
             % Fourier Transform
             %---------------------------------------------              
             log.info('Fourier Transform');
             Scale = 1e10;  % for Siemens (should come from above...)
-            Scale = Scale/(obj.SubSamp^3);
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -158,21 +154,23 @@ classdef StitchReconSuper < Grid
             log.info('Finish Super (Return HighSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
-                obj.ImageHighSoSArr(:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(obj.ImageHighSoSArr(:,:,:,m),GpuNum,obj.HSuperHighSoS);
+                obj.ImageHighSoSArr(:,:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(obj.ImageHighSoSArr(:,:,:,:,m),GpuNum,obj.HSuperHighSoS);
             end
             log.info('Finish Super (Return LowSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
-                obj.ImageLowSoSArr(:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(obj.ImageLowSoSArr(:,:,:,m),GpuNum,obj.HSuperLowSoS);
+                obj.ImageLowSoSArr(:,:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(obj.ImageLowSoSArr(:,:,:,:,m),GpuNum,obj.HSuperLowSoS);
             end
             obj.CudaDeviceWait(obj.NumGpuUsed-1);
             log.info('Finish Super (Combine Gpus)');
             for m = 1:obj.NumGpuUsed
-                obj.ImageHighSoS = obj.ImageHighSoS + obj.ImageHighSoSArr(:,:,:,m);
-                obj.ImageLowSoS = obj.ImageLowSoS + real(obj.ImageLowSoSArr(:,:,:,m));
+                obj.ImageHighSoS = obj.ImageHighSoS + obj.ImageHighSoSArr(:,:,:,:,m);
+                obj.ImageLowSoS = obj.ImageLowSoS + real(obj.ImageLowSoSArr(:,:,:,:,m));
             end
             log.info('Finish Super (Create Image)');
             obj.Image = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
+            obj.Image = obj.Image/(obj.SubSamp^3);
+            obj.FreeKspaceImageMatricesGpuMem;
             
             %----------------------------------------------
             % Return FoV
@@ -188,16 +186,6 @@ classdef StitchReconSuper < Grid
                 error('unrecognized ''Return Fov''');
             end
         end        
-
-%==================================================================
-% StitchFreeGpuMemory
-%==================================================================           
-        function StitchFreeGpuMemory(obj,log) 
-            obj.ReleaseGriddingGpuMem;
-            if not(isempty(obj.HSuperFilt))
-                obj.FreeSuperMatricesGpuMem;
-            end
-        end   
 
 %==================================================================
 % StitchReturnSuperImage

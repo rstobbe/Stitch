@@ -328,7 +328,7 @@ classdef GpuInterface < handle
         
 %==================================================================
 % AllocateKspaceImageMatricesGpuMem
-%   - input = array of 3 dimension sizes
+%   - inpute = array of 3 dimension sizes
 %==================================================================                      
         function AllocateKspaceImageMatricesGpuMem(obj,ImageMatrixMemDims)
             obj.ImageMatrixMemDims = uint64(ImageMatrixMemDims);
@@ -336,60 +336,38 @@ classdef GpuInterface < handle
             obj.HImageMatrix = zeros([obj.NumGpuUsed,obj.NumGpuUsed],'uint64');
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 for n = 1:obj.ChanPerGpu
-                    [obj.HImageMatrix(n,:),Error] = AllocateInitializeComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                    [obj.HImageMatrix(n,:),Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
                         MaxChanPerGpu = n
                         error(Error);
                     end
-                    [obj.HKspaceMatrix(n,:),Error] = AllocateInitializeComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                    [obj.HKspaceMatrix(n,:),Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
                         MaxChanPerGpu = n
                         error(Error);
                     end
                 end
-                [obj.HTempMatrix,Error] = AllocateInitializeComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                [obj.HTempMatrix,Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 for n = 1:obj.ChanPerGpu
-                    [obj.HImageMatrix(n,:),Error] = AllocateInitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                    [obj.HImageMatrix(n,:),Error] = AllocateComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
                         error(Error);
                     end
-                    [obj.HKspaceMatrix(n,:),Error] = AllocateInitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                    [obj.HKspaceMatrix(n,:),Error] = AllocateComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
                         error(Error);
                     end
                 end
-                [obj.HTempMatrix,Error] = AllocateInitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                [obj.HTempMatrix,Error] = AllocateComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
             end
         end          
-
-%==================================================================
-% InitializeKspaceMatricesGpuMem
-%==================================================================                      
-        function InitializeKspaceMatricesGpuMem(obj)
-            obj.HKspaceMatrix = zeros([obj.NumGpuUsed,obj.NumGpuUsed],'uint64');
-            if str2double(obj.GpuParams.ComputeCapability) == 7.5
-                for n = 1:obj.ChanPerGpu
-                    [Error] = InitializeComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.HKspaceMatrix(n,:),obj.ImageMatrixMemDims);
-                    if not(strcmp(Error,'no error'))
-                        error(Error);
-                    end
-                end
-            elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
-                for n = 1:obj.ChanPerGpu
-                    [Error] = InitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.HKspaceMatrix(n,:),obj.ImageMatrixMemDims);
-                    if not(strcmp(Error,'no error'))
-                        error(Error);
-                    end
-                end
-            end
-        end    
 
 %==================================================================
 % FreeKspaceImageMatricesGpuMem
@@ -437,11 +415,11 @@ classdef GpuInterface < handle
 %==================================================================                      
         function AllocateSuperMatricesGpuMem(obj)
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
-                [obj.HSuperLow,Error] = AllocateInitializeComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                [obj.HSuperLow,Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
-                [obj.HSuperLowConj,Error] = AllocateInitializeComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                [obj.HSuperLowConj,Error] = AllocateComplexMatrixAllGpuMem75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
@@ -454,11 +432,11 @@ classdef GpuInterface < handle
                     error(Error);
                 end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
-                [obj.HSuperLow,Error] = AllocateInitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                [obj.HSuperLow,Error] = AllocateComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
-                [obj.HSuperLowConj,Error] = AllocateInitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                [obj.HSuperLowConj,Error] = AllocateComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
@@ -478,10 +456,6 @@ classdef GpuInterface < handle
 %================================================================== 
         function FreeSuperMatricesGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
-                [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSuperFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSuperLow);
                 if not(strcmp(Error,'no error'))
                     error(Error);
@@ -499,10 +473,6 @@ classdef GpuInterface < handle
                     error(Error);
                 end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
-                [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HSuperFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HSuperLow);
                 if not(strcmp(Error,'no error'))
                     error(Error);
@@ -520,7 +490,6 @@ classdef GpuInterface < handle
                     error(Error);
                 end
             end
-            obj.HSuperFilt = [];
             obj.HSuperLow = [];
             obj.HSuperLowConj = [];
             obj.HSuperLowSoS = [];

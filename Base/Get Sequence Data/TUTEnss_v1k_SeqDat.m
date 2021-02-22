@@ -7,7 +7,7 @@ function [ExpPars,PanelOutput,err] = TUTEnss_v1k_SeqDat(MrProt,DataInfo)
 err.flag = 0;
 err.msg = '';
 
-Status2('busy','Load ''TUTEnss'' Sequence Info',2);
+% Status2('busy','Load ''TUTEnss'' Sequence Info',2);
 
 %---------------------------------------------
 % Read Trajectory
@@ -123,5 +123,5 @@ Panel(17,:) = {'Shift2 (mm)',ExpPars.shift(2),'Output'};
 Panel(18,:) = {'Shift3 (mm)',ExpPars.shift(3),'Output'};
 PanelOutput = cell2struct(Panel,{'label','value','type'},2);
 
-Status2('done','',2);       
+% Status2('done','',2);       
 

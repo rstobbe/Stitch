@@ -2,7 +2,7 @@
 %  
 %================================================================
 
-classdef StitchReconStandardSuper < StitchReconSuper
+classdef StitchReconStandardSodium < StitchReconSimple
 
     properties (SetAccess = private)                    
         ImageArray;
@@ -17,8 +17,8 @@ classdef StitchReconStandardSuper < StitchReconSuper
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchReconStandardSuper()
-            obj@StitchReconSuper;
+        function [obj] = StitchReconStandardSodium()
+            obj@StitchReconSimple;
         end
         
 %==================================================================
@@ -83,7 +83,7 @@ classdef StitchReconStandardSuper < StitchReconSuper
             plot(imag(obj.DataTestArray),'b');
             title('SteadyState'); xlabel('Trajectory Number'); ylabel('Signal');
             drawnow;
-            
+                
             %-----------------------------------------
             % Process
             %-----------------------------------------   
@@ -149,8 +149,8 @@ classdef StitchReconStandardSuper < StitchReconSuper
 % StitchPostAcqProcess
 %================================================================== 
         function StitchPostAcqProcess(obj,DataObj,log)
-            obj.StitchFftCombine(log);
-            obj.ImageArray(:,:,:,:,:,obj.CurAverage,:) = obj.StitchReturnSuperImage;
+            obj.StitchFft(log);
+            obj.ImageArray(:,:,:,:,:,obj.CurAverage,:) = obj.StitchReturnIndividualImages;
         end
 
 %==================================================================
