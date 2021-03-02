@@ -40,7 +40,7 @@ classdef StitchFire < StitchRecon & ReturnImage
             else
                 error('finish')
             end
-            StitchMetaData.ReconProtocol = RwsFireServer.StitchProtocolName;
+            StitchMetaData.ReconProtocol = ['R',RwsFireServer.MetaData.measurementInformation.protocolName];
             StitchMetaData.RxChannels = RwsFireServer.MetaData.acquisitionSystemInformation.receiverChannels;
             StitchMetaData = InterpTrajSiemens(obj,StitchMetaData,RwsFireServer.MetaData);
             StitchMetaData.BlockLength = RwsFireServer.AcqsPerPortRead;

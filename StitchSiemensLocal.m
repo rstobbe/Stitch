@@ -20,7 +20,7 @@ classdef StitchSiemensLocal < StitchRecon
 %==================================================================   
         function Initialize(obj,ReconMetaData,log)       
             ReconMetaData.DataSource = 'SiemensLocal';
-            ReconMetaData.PullReconLocal = 0;               % already read 
+            ReconMetaData.PullReconLocal = 1;               % do again
             ReconMetaData.LoadTrajLocal = 1;
             obj.StitchInit(ReconMetaData,log); 
         end

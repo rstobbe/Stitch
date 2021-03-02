@@ -10,6 +10,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
         TrajMashInfo;
         NumImages;
         ImageArray;
+        Figs2Save;
     end
     
     methods 
@@ -81,6 +82,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
             k0 = squeeze(abs(obj.Data(1,:,:) + 1j*obj.Data(2,:,:)));
             func = str2func(obj.StitchMetaData.TrajMashFunc);
             obj.TrajMashInfo = func(k0,obj.StitchMetaData);
+            obj.Figs2Save = obj.TrajMashInfo.Figs;
             obj.NumImages = length(obj.TrajMashInfo.TrajMashLocs(1,:));
             if obj.NumImages > 1
                 log.info('Allocate Multiple Image Array');

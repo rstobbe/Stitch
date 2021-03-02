@@ -29,7 +29,19 @@ classdef StitchRecon < handle
             if obj.StitchMetaData.PullReconLocal
                 obj.PullReconInfoLocal(log);
             end
+           
+            %------------------------------------------------------
+            % Load Trajectory 
+            %------------------------------------------------------
+            if obj.StitchMetaData.LoadTrajLocal == 1
+                ReconInfoMat = obj.LoadTrajectoryLocal(log);        
+            end
 
+            %------------------------------------------------------
+            % Update ReconInfo
+            %------------------------------------------------------            
+            obj.UpdateReconInfo(log);
+            
             %------------------------------------------------------
             % Reset GPUs (if requested)
             %------------------------------------------------------
@@ -39,14 +51,7 @@ classdef StitchRecon < handle
                 for n = 1:GpuTot
                     gpuDevice(n);               
                 end
-            end
-            
-            %------------------------------------------------------
-            % Load Trajectory 
-            %------------------------------------------------------
-            if obj.StitchMetaData.LoadTrajLocal == 1
-                ReconInfoMat = obj.LoadTrajectoryLocal(log);        
-            end
+            end            
             
             %------------------------------------------------------
             % Initialize ReconFunction
@@ -94,11 +99,51 @@ classdef StitchRecon < handle
             ReconPath = 'D:\StitchRelated\DefaultReconstructions\';
             addpath(ReconPath);
             if not(exist(obj.StitchMetaData.ReconProtocol,'file'))
-                log.error(['ReconProtocol ''',obj.StitchMetaData.ReconProtocol,''' does not exist']);
+                error(['ReconProtocol ''',obj.StitchMetaData.ReconProtocol,''' does not exist']);
             end
             func = str2func(obj.StitchMetaData.ReconProtocol);            
             obj.StitchMetaData = func(obj.StitchMetaData,log);
+            if not(isfield(obj.StitchMetaData,'TrajFile'))
+                obj.StitchMetaData.TrajFile = ['D:\StitchRelated\Trajectories\',obj.StitchMetaData.TrajName,'_X'];
+            end
+            if not(isfield(obj.StitchMetaData,'ResetGpus'))
+                obj.StitchMetaData.ResetGpus = 0;
+            end
+            if not(isfield(obj.StitchMetaData,'LoadTrajLocal'))
+                obj.StitchMetaData.LoadTrajLocal = 1;
+            end
         end  
+        
+%==================================================================
+% UpdateReconInfo
+%==================================================================   
+        function UpdateReconInfo(obj,log)
+            if not(isfield(obj.StitchMetaData,'Kernel'))
+                obj.StitchMetaData.Kernel = 'KBCw2b5p5ss1p6';
+            end
+            obj.StitchMetaData.KernelFile = ['D:\StitchRelated\Kernels\Kern_',obj.StitchMetaData.Kernel,'.mat'];
+            load(obj.StitchMetaData.KernelFile);
+            SubSamp = saveData.KRNprms.DesforSS;
+            PossibleZeroFill = saveData.KRNprms.PossibleZeroFill;
+            obj.StitchMetaData.Matrix = obj.StitchMetaData.Fov/obj.StitchMetaData.Vox;
+            obj.StitchMetaData.SubSampMatrix = obj.StitchMetaData.Matrix * SubSamp;
+            if not(isfield(obj.StitchMetaData,'ZeroFill'))
+                ind = find(PossibleZeroFill > obj.StitchMetaData.SubSampMatrix,1,'first');
+                obj.StitchMetaData.ZeroFill = PossibleZeroFill(ind);
+            end
+            if obj.StitchMetaData.ZeroFill < obj.StitchMetaData.SubSampMatrix
+                error('Specified ZeroFill is too small');
+            end
+            obj.StitchMetaData.InvFiltFile = ['D:\StitchRelated\InverseFilters\IF_',obj.StitchMetaData.Kernel,'zf',num2str(obj.StitchMetaData.ZeroFill),'S.mat'];   
+            if not(isfield(obj.StitchMetaData,'ReturnFov'))
+                obj.StitchMetaData.ReturnFov = 'Design';
+            end
+            if not(isfield(obj.StitchMetaData,'Super'))
+                obj.StitchMetaData.Super.ProfRes = 10;
+                obj.StitchMetaData.Super.ProfFilt = 12;
+            end
+        end
+        
 
 %==================================================================
 % StitchIntraAcqProcess
