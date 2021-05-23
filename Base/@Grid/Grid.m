@@ -69,7 +69,7 @@ classdef Grid < GpuInterface
             obj.kMatCentre = ceil(obj.SubSamp*obj.StitchMetaData.kMaxRad/obj.StitchMetaData.kStep) + (obj.KernHalfWid + 2); 
             obj.kSz = obj.kMatCentre*2 - 1;
             if obj.kSz > obj.StitchMetaData.ZeroFill
-                log.error(['Zero-Fill is to small. kSz = ',num2str(obj.kSz)]);
+                error(['Zero-Fill is to small. kSz = ',num2str(obj.kSz)]);
             end 
             obj.kStep = obj.StitchMetaData.kStep;
             obj.kShift = (obj.StitchMetaData.ZeroFill/2+1)-((obj.kSz+1)/2);
@@ -82,16 +82,19 @@ classdef Grid < GpuInterface
             %--------------------------------------
             log.info('Allocate GPU Memory for Gridding');
             obj.InitGpuInterface(obj.StitchMetaData.GpuTot,obj.StitchMetaData.ChanPerGpu);
+            if not(isempty(obj.HReconInfo))
+                obj.FreeReconInfoGpuMem;
+            end
             ReconInfoSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.BlockLength 4];
             obj.AllocateReconInfoGpuMem(ReconInfoSize);                       
-            SampDatSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.BlockLength];
             if not(isempty(obj.HSampDat))
                 obj.FreeSampDatGpuMem;
             end
+            SampDatSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.BlockLength];
+            obj.AllocateSampDatGpuMem(SampDatSize);
             if not(isempty(obj.HImageMatrix))
                 obj.FreeKspaceImageMatricesGpuMem;
             end
-            obj.AllocateSampDatGpuMem(SampDatSize);
             obj.AllocateKspaceImageMatricesGpuMem([obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill]);   % isotropic for now   
         end
           
@@ -152,7 +155,7 @@ classdef Grid < GpuInterface
                 obj.FreeKernelGpuMem;
             end
             if not(isempty(obj.HInvFilt))
-                obj.FreeInvFiltMem;
+                obj.FreeInvFiltGpuMem;
             end
         end       
 

@@ -2,7 +2,7 @@
 %  
 %================================================================
 
-classdef StitchReconSuper < Grid
+classdef StitchReconSuperSequential < Grid
 
     properties (SetAccess = private)                    
         StitchMetaData;
@@ -17,14 +17,14 @@ classdef StitchReconSuper < Grid
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchReconSuper()
+        function [obj] = StitchReconSuperSequential()
             obj@Grid;   
         end
         
 %==================================================================
-% StitchBasicInit
+% StitchBasicInitSeq
 %==================================================================   
-        function StitchBasicInit(obj,StitchMetaData,ReconInfoMat,log)
+        function StitchBasicInitSeq(obj,StitchMetaData,ReconInfoMat,log)
             obj.StitchMetaData = StitchMetaData;
             obj.ReconInfoMat = ReconInfoMat;
             
@@ -53,27 +53,18 @@ classdef StitchReconSuper < Grid
             %---------------------------------------------            
             log.info('Create/Load Super Filter');
             obj.CreateLoadSuperFilter(obj.StitchMetaData,log);
-            if not(isempty(obj.HSuperFilt))
-                obj.FreeSuperFiltGpuMem;
-            end
             obj.LoadSuperFiltGpuMem(obj.SuperFilt);
         end   
 
 %==================================================================
 % UpdateStitchMetaData
 %==================================================================          
-        function UpdateStitchMetaData(obj,StitchMetaData)
-            obj.StitchMetaData = StitchMetaData;
-        end
-        
+% - in StitchReconSuper 
+
 %==================================================================
 % AddToStitchMetaData
 %==================================================================          
-        function AddToStitchMetaData(obj,Field,Val)
-            for n = 1:length(Field)
-                obj.StitchMetaData.(Field{n}) = Val{n};
-            end
-        end        
+% - in StitchReconSuper 
 
 %==================================================================
 % StitchGridInit
@@ -112,9 +103,6 @@ classdef StitchReconSuper < Grid
             log.info('Initialize Super');
             obj.ImageHighSoS = complex(zeros([obj.ImageMatrixMemDims],'single'),0);
             obj.ImageLowSoS = zeros([obj.ImageMatrixMemDims],'single');            
-            if not(isempty(obj.HSuperLow))
-                obj.FreeSuperMatricesGpuMem;
-            end
             obj.AllocateSuperMatricesGpuMem;
             
             %---------------------------------------------
@@ -200,21 +188,11 @@ classdef StitchReconSuper < Grid
 %==================================================================           
         function StitchFreeGpuMemory(obj,log) 
             obj.ReleaseGriddingGpuMem;
-            obj.ReleaseSuperGpuMem;
-        end   
-
-%==================================================================
-% ReleaseSuperGpuMem
-%==================================================================           
-        function ReleaseSuperGpuMem(obj,log) 
             if not(isempty(obj.HSuperFilt))
-                obj.FreeSuperFiltGpuMem;
-            end
-            if not(isempty(obj.HSuperLow))
                 obj.FreeSuperMatricesGpuMem;
             end
-        end          
-        
+        end   
+
 %==================================================================
 % StitchReturnSuperImage
 %==================================================================           

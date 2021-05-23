@@ -18,6 +18,27 @@ classdef StitchRecon < handle
         end   
 
 %==================================================================
+% StitchLoadTrajInfo
+%==================================================================   
+        function StitchLoadTrajInfo(obj,StitchMetaData,log)
+            obj.StitchMetaData = StitchMetaData;
+            
+            %------------------------------------------------------
+            % Get ReconInfo (if don't already have)
+            %------------------------------------------------------
+            if obj.StitchMetaData.PullReconLocal
+                obj.PullReconInfoLocal(log);
+            end
+           
+            %------------------------------------------------------
+            % Load Trajectory 
+            %------------------------------------------------------
+            if obj.StitchMetaData.LoadTrajLocal == 1
+                obj.LoadTrajectoryLocal(log);        
+            end
+        end
+        
+%==================================================================
 % StitchInit
 %==================================================================   
         function StitchInit(obj,StitchMetaData,log)
@@ -56,9 +77,22 @@ classdef StitchRecon < handle
             %------------------------------------------------------
             % Initialize ReconFunction
             %------------------------------------------------------
-            func = str2func(obj.StitchMetaData.ReconFunction);
-            obj.Recon = func();
+            if not(isobject(obj.Recon))
+                func = str2func(obj.StitchMetaData.ReconFunction);
+                obj.Recon = func();
+            end
+            ReconName = class(obj.Recon);
+            if ~strcmp(ReconName,obj.StitchMetaData.ReconFunction)
+                %Data = obj.Recon.Data;         % if field
+                %SetData = 1;
+                delete(obj.Recon);
+                func = str2func(obj.StitchMetaData.ReconFunction);
+                obj.Recon = func();
+            end
             obj.Recon.StitchInit(obj.StitchMetaData,ReconInfoMat,log);
+%             if SetData == 1
+%                 obj.Recon.SetData(Data);
+%             end
         end           
 
 %==================================================================
@@ -73,6 +107,9 @@ classdef StitchRecon < handle
 %                ReconMetaData.p ~= obj.StitchMetaData.p
 %                 log.ERROR('Recon incompatable with data'); 
 %             end                    
+            if isempty(ReconMetaData)
+                error('Reload Data');
+            end
             fields = fieldnames(ReconMetaData);
             for n = 1:length(fields)
                 obj.StitchMetaData.(fields{n}) = ReconMetaData.(fields{n});
@@ -82,7 +119,9 @@ classdef StitchRecon < handle
                 obj.StitchMetaData.GpuTot = obj.StitchMetaData.RxChannels;
             end
             obj.StitchMetaData.ChanPerGpu = ceil(obj.StitchMetaData.RxChannels/obj.StitchMetaData.GpuTot);
-            obj.Recon.UpdateStitchMetaData(obj.StitchMetaData);
+            if isobject(obj.Recon)
+                obj.Recon.UpdateStitchMetaData(obj.StitchMetaData);
+            end
         end        
         
 %==================================================================
@@ -96,15 +135,13 @@ classdef StitchRecon < handle
 % PullReconInfoLocal
 %==================================================================   
         function PullReconInfoLocal(obj,log)
-            ReconPath = 'D:\StitchRelated\DefaultReconstructions\';
-            addpath(ReconPath);
             if not(exist(obj.StitchMetaData.ReconProtocol,'file'))
                 error(['ReconProtocol ''',obj.StitchMetaData.ReconProtocol,''' does not exist']);
             end
             func = str2func(obj.StitchMetaData.ReconProtocol);            
             obj.StitchMetaData = func(obj.StitchMetaData,log);
             if not(isfield(obj.StitchMetaData,'TrajFile'))
-                obj.StitchMetaData.TrajFile = ['D:\StitchRelated\Trajectories\',obj.StitchMetaData.TrajName,'_X'];
+                obj.StitchMetaData.TrajFile = [obj.StitchMetaData.StitchRelatedPath,'Trajectories\',obj.StitchMetaData.TrajName,'_X'];
             end
             if not(isfield(obj.StitchMetaData,'ResetGpus'))
                 obj.StitchMetaData.ResetGpus = 0;
@@ -121,7 +158,7 @@ classdef StitchRecon < handle
             if not(isfield(obj.StitchMetaData,'Kernel'))
                 obj.StitchMetaData.Kernel = 'KBCw2b5p5ss1p6';
             end
-            obj.StitchMetaData.KernelFile = ['D:\StitchRelated\Kernels\Kern_',obj.StitchMetaData.Kernel,'.mat'];
+            obj.StitchMetaData.KernelFile = [obj.StitchMetaData.StitchRelatedPath,'Kernels\Kern_',obj.StitchMetaData.Kernel,'.mat'];
             load(obj.StitchMetaData.KernelFile);
             SubSamp = saveData.KRNprms.DesforSS;
             PossibleZeroFill = saveData.KRNprms.PossibleZeroFill;
@@ -134,7 +171,7 @@ classdef StitchRecon < handle
             if obj.StitchMetaData.ZeroFill < obj.StitchMetaData.SubSampMatrix
                 error('Specified ZeroFill is too small');
             end
-            obj.StitchMetaData.InvFiltFile = ['D:\StitchRelated\InverseFilters\IF_',obj.StitchMetaData.Kernel,'zf',num2str(obj.StitchMetaData.ZeroFill),'S.mat'];   
+            obj.StitchMetaData.InvFiltFile = [obj.StitchMetaData.StitchRelatedPath,'InverseFilters\IF_',obj.StitchMetaData.Kernel,'zf',num2str(obj.StitchMetaData.ZeroFill),'S.mat'];   
             if not(isfield(obj.StitchMetaData,'ReturnFov'))
                 obj.StitchMetaData.ReturnFov = 'Design';
             end
@@ -158,6 +195,13 @@ classdef StitchRecon < handle
         function StitchPostAcqProcess(obj,DataObj,log)
             obj.Recon.StitchPostAcqProcess(DataObj,log);
         end 
+
+%==================================================================
+% StitchFinishAcqProcess
+%==================================================================   
+        function StitchFinishAcqProcess(obj,DataObj,log)
+            obj.Recon.StitchFinishAcqProcess(DataObj,log);
+        end          
         
 %==================================================================
 % StitchReturnImage
@@ -211,6 +255,14 @@ classdef StitchRecon < handle
                 obj.StitchMetaData.Fov = IMP.Fov;
                 obj.StitchMetaData.Vox = IMP.Vox;
             end
-        end             
+        end
+        
+%==================================================================
+% Destructor
+%================================================================== 
+        function delete(obj)
+            delete(obj.Recon);
+        end   
+        
     end
 end

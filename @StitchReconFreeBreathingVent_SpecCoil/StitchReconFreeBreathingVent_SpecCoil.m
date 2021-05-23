@@ -2,7 +2,7 @@
 %  
 %================================================================
 
-classdef StitchReconFreeBreathing < StitchReconSuper
+classdef StitchReconFreeBreathingVent_SpecCoil < StitchReconSuper
 
     properties (SetAccess = private)                    
         DataSeqParams;
@@ -19,7 +19,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchReconFreeBreathing()
+        function [obj] = StitchReconFreeBreathingVent_SpecCoil()
             obj@StitchReconSuper;
         end
         
@@ -78,6 +78,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 %================================================================== 
         function StitchPostAcqProcess(obj,DataObj,log)
 
+            include_coils=[1:24 26:30 32 35 36 39 40 46:obj.StitchMetaData.RxChannels];
             log.info('Create TrajMash');
             if isempty(obj.Data)
                 error('Reload Data');
@@ -89,7 +90,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
             MetaData.NumTraj = obj.StitchMetaData.NumTraj;
             obj.TrajMashInfo = func(k0,MetaData);
             obj.Figs2Save = obj.TrajMashInfo.Figs;
-            obj.NumImages = length(obj.TrajMashInfo.TrajMashLocs(1,:));
+            obj.NumImages = length(obj.TrajMashInfo.TrajMashLocs);
             if obj.NumImages > 1
                 log.info('Allocate Multiple Image Array');
                 obj.ImageArray = complex(zeros([size(obj.Image),obj.NumImages],'single'),0);
@@ -106,9 +107,24 @@ classdef StitchReconFreeBreathing < StitchReconSuper
                     if Stop > obj.NumTraj
                         Stop = obj.NumTraj;
                         TempDataObj.DataBlock = zeros(obj.StitchMetaData.NumCol*2,DataObj.DataBlockLength,obj.StitchMetaData.RxChannels,'single');
-                        TempDataObj.DataBlock(:,1:Stop-Start+1,:) = obj.Data(:,obj.TrajMashInfo.TrajMashLocs(Start:Stop,m),:);
+                        counter=1;
+                        for j=Start:Stop
+                            tempmash=find(obj.TrajMashInfo.TrajMash{m}(:,1)==j);
+                            temploc=obj.TrajMashInfo.TrajMashLocs{m}(tempmash);
+                            tempData=mean(obj.Data(:,temploc,include_coils),2);
+                            TempDataObj.DataBlock(:,counter,include_coils) = tempData;
+                            counter=counter+1;
+                        end
                     else
-                        TempDataObj.DataBlock = obj.Data(:,obj.TrajMashInfo.TrajMashLocs(Start:Stop,m),:);
+                        TempDataObj.DataBlock = zeros(obj.StitchMetaData.NumCol*2,DataObj.DataBlockLength,obj.StitchMetaData.RxChannels,'single');
+                        counter=1;
+                        for j=Start:Stop
+                            tempmash=find(obj.TrajMashInfo.TrajMash{m}(:,1)==j);
+                            temploc=obj.TrajMashInfo.TrajMashLocs{m}(tempmash);
+                            tempData=mean(obj.Data(:,temploc,include_coils),2);
+                            TempDataObj.DataBlock(:,counter,include_coils) = tempData;
+                            counter=counter+1;
+                        end
                         %TempDataObj.ReconInfoMat            % future
                     end
                     Info.TrajAcqStart = Start;
@@ -133,7 +149,9 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 % StitchReturnImage
 %==================================================================           
         function Image = StitchReturnImage(obj,log) 
-            Image = obj.ImageArray;
+            %Image = obj.ImageArray;
+            CropSides=20;
+            Image = single(abs(obj.ImageArray(CropSides:end-CropSides,CropSides:end-CropSides,CropSides:end-CropSides,:)));
         end            
 
 %==================================================================

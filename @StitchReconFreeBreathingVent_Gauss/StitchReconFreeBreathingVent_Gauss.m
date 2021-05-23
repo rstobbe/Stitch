@@ -2,7 +2,7 @@
 %  
 %================================================================
 
-classdef StitchReconFreeBreathing < StitchReconSuper
+classdef StitchReconFreeBreathingVent_Gauss < StitchReconSuper
 
     properties (SetAccess = private)                    
         DataSeqParams;
@@ -19,7 +19,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchReconFreeBreathing()
+        function [obj] = StitchReconFreeBreathingVent_Gauss()
             obj@StitchReconSuper;
         end
         
@@ -88,8 +88,8 @@ classdef StitchReconFreeBreathing < StitchReconSuper
             MetaData.NumAverages = obj.DataSeqParams.NumAverages;
             MetaData.NumTraj = obj.StitchMetaData.NumTraj;
             obj.TrajMashInfo = func(k0,MetaData);
-            obj.Figs2Save = obj.TrajMashInfo.Figs;
-            obj.NumImages = length(obj.TrajMashInfo.TrajMashLocs(1,:));
+            %obj.Figs2Save = obj.TrajMashInfo.Figs;
+            obj.NumImages = length(obj.TrajMashInfo.TrajMashLocs);
             if obj.NumImages > 1
                 log.info('Allocate Multiple Image Array');
                 obj.ImageArray = complex(zeros([size(obj.Image),obj.NumImages],'single'),0);
@@ -106,20 +106,61 @@ classdef StitchReconFreeBreathing < StitchReconSuper
                     if Stop > obj.NumTraj
                         Stop = obj.NumTraj;
                         TempDataObj.DataBlock = zeros(obj.StitchMetaData.NumCol*2,DataObj.DataBlockLength,obj.StitchMetaData.RxChannels,'single');
-                        TempDataObj.DataBlock(:,1:Stop-Start+1,:) = obj.Data(:,obj.TrajMashInfo.TrajMashLocs(Start:Stop,m),:);
-                    else
-                        TempDataObj.DataBlock = obj.Data(:,obj.TrajMashInfo.TrajMashLocs(Start:Stop,m),:);
+                        counter=1;
+                        for j=Start:Stop
+                            tempmash=find(obj.TrajMashInfo.TrajMash{m}(:,1)==j);
+                            temploc=obj.TrajMashInfo.TrajMashLocs{m}(tempmash);
+                             mult_values=obj.TrajMashInfo.TrajMash{m}(tempmash,3);
+                            tempData=zeros(size(obj.Data(:,temploc,:)),'single');
+                            for(k=1:length(mult_values))
+                                tempData(:,k,:)=obj.Data(:,temploc(k),:).*mult_values(k);
+                            end
+                            tempData=sum(tempData,2)./(sum(mult_values)*length(mult_values));
+                            TempDataObj.DataBlock(:,counter,:) = tempData;
+                            counter=counter+1;
+                        end
+                    else                        
+                        counter=1;
+                        for j=Start:Stop
+                            tempmash=find(obj.TrajMashInfo.TrajMash{m}(:,1)==j);
+                            temploc=obj.TrajMashInfo.TrajMashLocs{m}(tempmash);
+                            mult_values=obj.TrajMashInfo.TrajMash{m}(tempmash,3);
+                            tempData=zeros(size(obj.Data(:,temploc,:)),'single');
+                            for(k=1:length(mult_values))
+                                tempData(:,k,:)=obj.Data(:,temploc(k),:).*mult_values(k);
+                            end
+                            tempData=sum(tempData,2)./(sum(mult_values)*length(mult_values));
+                            TempDataObj.DataBlock(:,counter,:) = tempData;
+                            counter=counter+1;
+                        end
                         %TempDataObj.ReconInfoMat            % future
                     end
                     Info.TrajAcqStart = Start;
                     Info.TrajAcqStop = Stop;
                     TempDataObj.DataBlockLength = DataObj.DataBlockLength;
                     TempDataObj.NumCol = DataObj.NumCol;
+                     TempDataObj.DataBlock=single(TempDataObj.DataBlock);
                     obj.StitchGridDataBlock(TempDataObj,Info,log); 
                 end
                 obj.StitchFftCombine(log); 
                 obj.ImageArray(:,:,:,m) = obj.StitchReturnSuperImage;
             end
+            %/////////////////////////////////////
+            % Temporary 1D Filter Here
+            %/////////////////////////////////////
+            sz = size(obj.Image);
+%             Filter = zeros(sz);
+%             beta = 5;                   % bigger = more filtering.  
+%             for a = 1:sz(2) 
+%                 for b = 1:sz(3)
+%                     Filter(:,a,b) = kaiser(sz(2),beta);             % Case of filtering in 1D
+%                 end
+%             end
+            Filter = ones(sz);%%uncomment for no filtering
+            for m = 1:obj.NumImages
+                obj.ImageArray(:,:,:,m) = fftshift(ifftn(ifftshift(fftshift(fftn(ifftshift(obj.ImageArray(:,:,:,m)))).*Filter)));
+            end
+            %/////////////////////////////////////
         end
 
 %==================================================================
@@ -133,7 +174,9 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 % StitchReturnImage
 %==================================================================           
         function Image = StitchReturnImage(obj,log) 
-            Image = obj.ImageArray;
+            %Image = obj.ImageArray;
+            CropSides=20;
+            Image = single(abs(obj.ImageArray(CropSides:end-CropSides,CropSides:end-CropSides,CropSides:end-CropSides,:)));
         end            
 
 %==================================================================

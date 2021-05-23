@@ -2,15 +2,13 @@
 %  
 %================================================================
 
-classdef StitchReconFreeBreathing < StitchReconSuper
+classdef StitchReconFreeBreathingReturnAll < StitchReconSimple
 
     properties (SetAccess = private)                    
         DataSeqParams;
         Data;
         %ReconInfoMat;
         TrajMashInfo;
-        NumImages;
-        ImageArray;
         Figs2Save;
     end
     
@@ -19,8 +17,8 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchReconFreeBreathing()
-            obj@StitchReconSuper;
+        function [obj] = StitchReconFreeBreathingReturnAll()
+            obj@StitchReconSimple;
         end
         
 %==================================================================
@@ -89,16 +87,12 @@ classdef StitchReconFreeBreathing < StitchReconSuper
             MetaData.NumTraj = obj.StitchMetaData.NumTraj;
             obj.TrajMashInfo = func(k0,MetaData);
             obj.Figs2Save = obj.TrajMashInfo.Figs;
-            obj.NumImages = length(obj.TrajMashInfo.TrajMashLocs(1,:));
-            if obj.NumImages > 1
-                log.info('Allocate Multiple Image Array');
-                obj.ImageArray = complex(zeros([size(obj.Image),obj.NumImages],'single'),0);
-            end
+            NumImages = length(obj.TrajMashInfo.TrajMashLocs(1,:));
+            obj.AllocateCpuMem(NumImages,log);      
 
-            for m = 1:obj.NumImages
-                log.info('Initialize Gridding');
-                obj.StitchGridInit(log);        
-                log.info('Grid Image %i of %i',m,obj.NumImages);
+            for m = 1:NumImages
+                obj.StitchGridInit(log); 
+                log.info('Grid Image %i of %i',m,NumImages);
                 BlocksPerImage = ceil(DataObj.TotalBlockReads/DataObj.NumAverages);
                 for n = 1:BlocksPerImage
                     Start = (n-1)*DataObj.DataBlockLength + 1;
@@ -117,8 +111,8 @@ classdef StitchReconFreeBreathing < StitchReconSuper
                     TempDataObj.NumCol = DataObj.NumCol;
                     obj.StitchGridDataBlock(TempDataObj,Info,log); 
                 end
-                obj.StitchFftCombine(log); 
-                obj.ImageArray(:,:,:,m) = obj.StitchReturnSuperImage;
+                obj.StitchFft(log); 
+                obj.StitchReturnImages(m,log); 
             end
         end
 
@@ -133,7 +127,7 @@ classdef StitchReconFreeBreathing < StitchReconSuper
 % StitchReturnImage
 %==================================================================           
         function Image = StitchReturnImage(obj,log) 
-            Image = obj.ImageArray;
+            Image = obj.StitchReturnIndividualImages(log);
         end            
 
 %==================================================================

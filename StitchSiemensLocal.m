@@ -5,6 +5,7 @@
 classdef StitchSiemensLocal < StitchRecon
     
     properties (SetAccess = private)                    
+        ReconMetaData;
     end    
     methods
 
@@ -15,6 +16,16 @@ classdef StitchSiemensLocal < StitchRecon
             obj@StitchRecon();          
         end 
 
+%==================================================================
+% DataLoadInit
+%==================================================================   
+        function DataLoadInit(obj,ReconMetaData,log)       
+            ReconMetaData.DataSource = 'SiemensLocal';
+            ReconMetaData.PullReconLocal = 1;               % do again
+            ReconMetaData.LoadTrajLocal = 1;
+            obj.StitchLoadTrajInfo(ReconMetaData,log); 
+        end        
+        
 %==================================================================
 % Initialize
 %==================================================================   
@@ -30,10 +41,10 @@ classdef StitchSiemensLocal < StitchRecon
 %==================================================================           
         function ProcessSiemensHeaderInfo(obj,RwsSiemensHandler,log)
             sWipMemBlock = RwsSiemensHandler.DataHdr.sWipMemBlock;
-            ReconMetaData.Protocol = RwsSiemensHandler.DataHdr.ProtocolName;
-            ReconMetaData.RxChannels = RwsSiemensHandler.DataDims.NCha;
-            ReconMetaData = InterpTrajSiemens(obj,ReconMetaData,sWipMemBlock);   
-            obj.UpdateTestStitchMetaData(ReconMetaData,log);
+            obj.ReconMetaData.Protocol = RwsSiemensHandler.DataHdr.ProtocolName;
+            obj.ReconMetaData.RxChannels = RwsSiemensHandler.DataDims.NCha;
+            obj.ReconMetaData = InterpTrajSiemens(obj,obj.ReconMetaData,sWipMemBlock);   
+            obj.UpdateTestStitchMetaData(obj.ReconMetaData,log);
         end
 
 %==================================================================
@@ -57,15 +68,30 @@ classdef StitchSiemensLocal < StitchRecon
 % IntraAcqProcess
 %==================================================================   
         function IntraAcqProcess(obj,RwsSiemensHandler,log)                 
+            obj.UpdateTestStitchMetaData(obj.ReconMetaData,log);
             obj.StitchIntraAcqProcess(RwsSiemensHandler,log); 
         end
 
 %==================================================================
 % PostAcqProcess
 %==================================================================   
-        function PostAcqProcess(obj,RwsSiemensHandler,log)
+        function PostAcqProcess(obj,RwsSiemensHandler,log,OverRide)
+            if nargin == 4
+                fields = fieldnames(OverRide);
+                for n = 1:length(fields)
+                    obj.StitchMetaData.(fields{n}) = ReconMetaData.(fields{n});
+                end
+            end
+            obj.UpdateTestStitchMetaData(obj.ReconMetaData,log);
             obj.StitchPostAcqProcess(RwsSiemensHandler,log);
         end
+
+%==================================================================
+% FinishAcqProcess
+%==================================================================   
+        function FinishAcqProcess(obj,RwsSiemensHandler,log)
+            obj.StitchFinishAcqProcess(RwsSiemensHandler,log);
+        end        
         
 %==================================================================
 % ReturnImage
@@ -117,6 +143,11 @@ classdef StitchSiemensLocal < StitchRecon
             ReconMetaData.p = p;
             ReconMetaData.id = id;
         end
+
+%==================================================================
+% Destructor
+%================================================================== 
+        % done below
         
     end
 end

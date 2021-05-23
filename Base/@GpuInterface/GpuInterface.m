@@ -110,7 +110,7 @@ classdef GpuInterface < handle
 %==================================================================
 % FreeInvFiltGpuMem
 %================================================================== 
-        function FreeInvFiltMem(obj)    
+        function FreeInvFiltGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HInvFilt);
                 if not(strcmp(Error,'no error'))
@@ -146,9 +146,9 @@ classdef GpuInterface < handle
         end          
 
 %==================================================================
-% FreeInvFiltGpuMem
+% FreeSuperFiltGpuMem
 %================================================================== 
-        function FreeSuperFiltMem(obj)    
+        function FreeSuperFiltGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSuperFilt);
                 if not(strcmp(Error,'no error'))
@@ -478,10 +478,6 @@ classdef GpuInterface < handle
 %================================================================== 
         function FreeSuperMatricesGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
-                [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSuperFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSuperLow);
                 if not(strcmp(Error,'no error'))
                     error(Error);
@@ -499,10 +495,6 @@ classdef GpuInterface < handle
                     error(Error);
                 end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
-                [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HSuperFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HSuperLow);
                 if not(strcmp(Error,'no error'))
                     error(Error);
@@ -520,7 +512,6 @@ classdef GpuInterface < handle
                     error(Error);
                 end
             end
-            obj.HSuperFilt = [];
             obj.HSuperLow = [];
             obj.HSuperLowConj = [];
             obj.HSuperLowSoS = [];
