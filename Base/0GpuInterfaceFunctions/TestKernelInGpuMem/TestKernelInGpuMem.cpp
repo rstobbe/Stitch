@@ -7,7 +7,7 @@
 #include "matrix.h"
 #include "math.h"
 #include "string.h"
-#include "CUDA_GeneralSgl1_v1f.h"
+#include "CUDA_GeneralSgl_v11f.h"
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray *prhs[])
 {

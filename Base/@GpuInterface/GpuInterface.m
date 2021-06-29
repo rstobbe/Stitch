@@ -17,16 +17,21 @@ classdef GpuInterface < handle
 %==================================================================
 % Constructor
 %==================================================================   
-        function obj = GpuInterface()
-            obj.GpuParams = gpuDevice; 
-            obj.NumGpuUsed = uint64(gpuDeviceCount);
+        function obj = GpuInterface()           
         end        
         
 %==================================================================
-% Init
+% GpuInit
 %==================================================================   
-        function InitGpuInterface(obj,NumGpuUsed,ChanPerGpu)
-            obj.NumGpuUsed = uint64(NumGpuUsed);
+        function GpuInit(obj)
+            obj.GpuParams = gpuDevice; 
+            obj.NumGpuUsed = uint64(obj.StitchMetaData.Gpus2Use);
+        end
+
+%==================================================================
+% SetChanPerGpu
+%==================================================================           
+        function SetChanPerGpu(obj,ChanPerGpu)
             obj.ChanPerGpu = ChanPerGpu;
         end
 
@@ -40,11 +45,31 @@ classdef GpuInterface < handle
                 [obj.HFourierTransformPlan,Error] = CreateFourierTransformPlanAllGpu75(obj.NumGpuUsed,obj.ImageMatrixMemDims);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [obj.HFourierTransformPlan,Error] = CreateFourierTransformPlanAllGpu61(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [obj.HFourierTransformPlan,Error] = CreateFourierTransformPlanAllGpu86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
         end
+        
+%==================================================================
+% ReleaseFourierTransform
+%   - All GPUs
+%==================================================================         
+        function ReleaseFourierTransform(obj)
+            if str2double(obj.GpuParams.ComputeCapability) == 7.5
+                [Error] = TeardownFourierTransformPlanAllGpu75(obj.NumGpuUsed,obj.HFourierTransformPlan);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
+                [Error] = TeardownFourierTransformPlanAllGpu61(obj.NumGpuUsed,obj.HFourierTransformPlan);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = TeardownFourierTransformPlanAllGpu86(obj.NumGpuUsed,obj.HFourierTransformPlan);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            obj.HFourierTransformPlan = [];
+        end        
       
 %==================================================================
 % LoadKernelGpuMem
@@ -63,6 +88,8 @@ classdef GpuInterface < handle
                 [obj.HKernel,Error] = AllocateLoadRealMatrixAllGpuMem75(obj.NumGpuUsed,Kernel);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1 
                 [obj.HKernel,Error] = AllocateLoadRealMatrixAllGpuMem61(obj.NumGpuUsed,Kernel);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6 
+                [obj.HKernel,Error] = AllocateLoadRealMatrixAllGpuMem86(obj.NumGpuUsed,Kernel);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -75,14 +102,13 @@ classdef GpuInterface < handle
         function FreeKernelGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HKernel);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HKernel);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HKernel);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
             end
             obj.HKernel = [];
         end          
@@ -101,6 +127,8 @@ classdef GpuInterface < handle
                 [obj.HInvFilt,Error] = AllocateLoadRealMatrixAllGpuMem75(obj.NumGpuUsed,InvFilt);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1 
                 [obj.HInvFilt,Error] = AllocateLoadRealMatrixAllGpuMem61(obj.NumGpuUsed,InvFilt);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6 
+                [obj.HInvFilt,Error] = AllocateLoadRealMatrixAllGpuMem86(obj.NumGpuUsed,InvFilt);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -113,14 +141,13 @@ classdef GpuInterface < handle
         function FreeInvFiltGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HInvFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HInvFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HInvFilt);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
             end
             obj.HInvFilt = [];
         end          
@@ -139,6 +166,8 @@ classdef GpuInterface < handle
                 [obj.HSuperFilt,Error] = AllocateLoadRealMatrixAllGpuMem75(obj.NumGpuUsed,SuperFilt);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1 
                 [obj.HSuperFilt,Error] = AllocateLoadRealMatrixAllGpuMem61(obj.NumGpuUsed,SuperFilt);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6 
+                [obj.HSuperFilt,Error] = AllocateLoadRealMatrixAllGpuMem86(obj.NumGpuUsed,SuperFilt);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -151,14 +180,13 @@ classdef GpuInterface < handle
         function FreeSuperFiltGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSuperFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HSuperFilt);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HSuperFilt);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
             end
             obj.HSuperFilt = [];
         end        
@@ -177,6 +205,8 @@ classdef GpuInterface < handle
                 [obj.HReconInfo,Error] = AllocateReconInfoGpuMem75(obj.NumGpuUsed,obj.ReconInfoMemDims);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [obj.HReconInfo,Error] = AllocateReconInfoGpuMem61(obj.NumGpuUsed,obj.ReconInfoMemDims);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [obj.HReconInfo,Error] = AllocateReconInfoGpuMem86(obj.NumGpuUsed,obj.ReconInfoMemDims);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -189,14 +219,13 @@ classdef GpuInterface < handle
         function FreeReconInfoGpuMem(obj)    
             if str2double(obj.GpuParams.ComputeCapability) == 7.5
                 [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HReconInfo);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HReconInfo);
-                if not(strcmp(Error,'no error'))
-                    error(Error);
-                end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HReconInfo);
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
             end
             obj.HReconInfo = [];
         end          
@@ -221,6 +250,8 @@ classdef GpuInterface < handle
                 [Error] = LoadReconInfoGpuMem75(obj.NumGpuUsed,obj.HReconInfo,ReconInfo);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = LoadReconInfoGpuMem61(obj.NumGpuUsed,obj.HReconInfo,ReconInfo);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = LoadReconInfoGpuMem86(obj.NumGpuUsed,obj.HReconInfo,ReconInfo);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -247,6 +278,8 @@ classdef GpuInterface < handle
                 [Error] = LoadReconInfoGpuMemAsync75(obj.NumGpuUsed,obj.HReconInfo,ReconInfo);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = LoadReconInfoGpuMemAsync61(obj.NumGpuUsed,obj.HReconInfo,ReconInfo);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = LoadReconInfoGpuMemAsync86(obj.NumGpuUsed,obj.HReconInfo,ReconInfo);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -274,6 +307,8 @@ classdef GpuInterface < handle
                     [obj.HSampDat(n,:),Error] = AllocateSampDatGpuMem75(obj.NumGpuUsed,obj.SampDatMemDims);
                 elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                     [obj.HSampDat(n,:),Error] = AllocateSampDatGpuMem61(obj.NumGpuUsed,obj.SampDatMemDims);
+                elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                    [obj.HSampDat(n,:),Error] = AllocateSampDatGpuMem86(obj.NumGpuUsed,obj.SampDatMemDims);
                 end
                 if not(strcmp(Error,'no error'))
                     error(Error);
@@ -288,14 +323,13 @@ classdef GpuInterface < handle
             for n = 1:obj.ChanPerGpu
                 if str2double(obj.GpuParams.ComputeCapability) == 7.5
                     [Error] = FreeAllGpuMem75(obj.NumGpuUsed,obj.HSampDat(n,:));
-                    if not(strcmp(Error,'no error'))
-                        error(Error);
-                    end
                 elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                     [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HSampDat(n,:));
-                    if not(strcmp(Error,'no error'))
-                        error(Error);
-                    end
+                elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                    [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HSampDat(n,:));
+                end
+                if not(strcmp(Error,'no error'))
+                    error(Error);
                 end
             end
             obj.HSampDat = [];
@@ -320,6 +354,9 @@ classdef GpuInterface < handle
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 %[Error] = LoadSampDatGpuMemAsync61(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
                 [Error] = LoadSampDatGpuMemAsyncRI61(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                %[Error] = LoadSampDatGpuMemAsync86(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
+                [Error] = LoadSampDatGpuMemAsyncRI86(LoadGpuNum,obj.HSampDat(GpuChanNum,:),SampDat);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -366,6 +403,21 @@ classdef GpuInterface < handle
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                for n = 1:obj.ChanPerGpu
+                    [obj.HImageMatrix(n,:),Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                    [obj.HKspaceMatrix(n,:),Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                end
+                [obj.HTempMatrix,Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
             end
         end          
 
@@ -384,6 +436,13 @@ classdef GpuInterface < handle
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 for n = 1:obj.ChanPerGpu
                     [Error] = InitializeComplexMatrixAllGpuMem61(obj.NumGpuUsed,obj.HKspaceMatrix(n,:),obj.ImageMatrixMemDims);
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                for n = 1:obj.ChanPerGpu
+                    [Error] = InitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.HKspaceMatrix(n,:),obj.ImageMatrixMemDims);
                     if not(strcmp(Error,'no error'))
                         error(Error);
                     end
@@ -422,6 +481,21 @@ classdef GpuInterface < handle
                     end
                 end
                 [Error] = FreeAllGpuMem61(obj.NumGpuUsed,obj.HTempMatrix);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                for n = 1:obj.ChanPerGpu
+                    [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HImageMatrix(n,:));
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                    [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HKspaceMatrix(n,:));
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                end
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HTempMatrix);
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
@@ -470,6 +544,23 @@ classdef GpuInterface < handle
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [obj.HSuperLow,Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [obj.HSuperLowConj,Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [obj.HSuperLowSoS,Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [obj.HSuperHighSoS,Error] = AllocateInitializeComplexMatrixAllGpuMem86(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
             end
         end        
 
@@ -511,6 +602,23 @@ classdef GpuInterface < handle
                 if not(strcmp(Error,'no error'))
                     error(Error);
                 end
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HSuperLow);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HSuperLowConj);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HSuperLowSoS);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+                [Error] = FreeAllGpuMem86(obj.NumGpuUsed,obj.HSuperHighSoS);
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
             end
             obj.HSuperLow = [];
             obj.HSuperLowConj = [];
@@ -532,6 +640,9 @@ classdef GpuInterface < handle
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = GridSampDat61(GpuNum,obj.HSampDat(GpuChanNum,:),obj.HReconInfo,obj.HKernel,obj.HKspaceMatrix(GpuChanNum,:),...
                                         obj.SampDatMemDims,obj.KernelMemDims,obj.ImageMatrixMemDims,obj.iKern,obj.KernHw);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = GridSampDat86(GpuNum,obj.HSampDat(GpuChanNum,:),obj.HReconInfo,obj.HKernel,obj.HKspaceMatrix(GpuChanNum,:),...
+                                        obj.SampDatMemDims,obj.KernelMemDims,obj.ImageMatrixMemDims,obj.iKern,obj.KernHw);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -550,6 +661,8 @@ classdef GpuInterface < handle
                 [KspaceMatrix,Error] = ReturnComplexMatrixSingleGpu75(TestGpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.ImageMatrixMemDims);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [KspaceMatrix,Error] = ReturnComplexMatrixSingleGpu61(TestGpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.ImageMatrixMemDims);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [KspaceMatrix,Error] = ReturnComplexMatrixSingleGpu86(TestGpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.ImageMatrixMemDims);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -568,6 +681,8 @@ classdef GpuInterface < handle
                 [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu75(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.ImageMatrixMemDims);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu61(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.ImageMatrixMemDims);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu86(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.ImageMatrixMemDims);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -586,6 +701,8 @@ classdef GpuInterface < handle
                 [ImageMatrix,Error] = ReturnRealMatrixSingleGpu75(GpuNum,Image,obj.ImageMatrixMemDims);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [ImageMatrix,Error] = ReturnRealMatrixSingleGpu61(GpuNum,Image,obj.ImageMatrixMemDims);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [ImageMatrix,Error] = ReturnRealMatrixSingleGpu86(GpuNum,Image,obj.ImageMatrixMemDims);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -595,7 +712,8 @@ classdef GpuInterface < handle
 %==================================================================
 % ReturnOneImageMatrixGpuMemSpecify
 %================================================================== 
-        function ImageMatrix = ReturnOneImageMatrixGpuMemSpecify(obj,ImageMatrix,GpuNum,Image)
+        %function ImageMatrix = ReturnOneImageMatrixGpuMemSpecify(obj,ImageMatrix,GpuNum,Image)     % should be able to delete
+        function ImageMatrix = ReturnOneImageMatrixGpuMemSpecify(obj,GpuNum,Image)
             if GpuNum > obj.NumGpuUsed-1
                 error('Specified ''GpuNum'' beyond number of GPUs used');
             end
@@ -604,6 +722,8 @@ classdef GpuInterface < handle
                 [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu75(GpuNum,Image,obj.ImageMatrixMemDims);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu61(GpuNum,Image,obj.ImageMatrixMemDims);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [ImageMatrix,Error] = ReturnComplexMatrixSingleGpu86(GpuNum,Image,obj.ImageMatrixMemDims);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -622,6 +742,8 @@ classdef GpuInterface < handle
                 [Error] = FourierTransformShiftSingleGpu75(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.HTempMatrix,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FourierTransformShiftSingleGpu61(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.HTempMatrix,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FourierTransformShiftSingleGpu86(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.HTempMatrix,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -640,6 +762,8 @@ classdef GpuInterface < handle
                 [Error] = FourierTransformShiftSingleGpu75(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HTempMatrix,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FourierTransformShiftSingleGpu61(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HTempMatrix,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FourierTransformShiftSingleGpu86(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HTempMatrix,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -658,6 +782,8 @@ classdef GpuInterface < handle
                 [Error] = FourierTransformShiftSingleGpu75(GpuNum,Image,obj.HTempMatrix,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = FourierTransformShiftSingleGpu61(GpuNum,Image,obj.HTempMatrix,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = FourierTransformShiftSingleGpu86(GpuNum,Image,obj.HTempMatrix,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -676,6 +802,8 @@ classdef GpuInterface < handle
                 [Error] = ExecuteInverseFourierTransformSingleGpu75(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),obj.HFourierTransformPlan,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ExecuteInverseFourierTransformSingleGpu61(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),obj.HFourierTransformPlan,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ExecuteInverseFourierTransformSingleGpu86(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),obj.HFourierTransformPlan,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -694,6 +822,8 @@ classdef GpuInterface < handle
                 [Error] = ExecuteInverseFourierTransformSingleGpu75(GpuNum,Image,Kspace,obj.HFourierTransformPlan,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ExecuteInverseFourierTransformSingleGpu61(GpuNum,Image,Kspace,obj.HFourierTransformPlan,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ExecuteInverseFourierTransformSingleGpu86(GpuNum,Image,Kspace,obj.HFourierTransformPlan,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -712,6 +842,8 @@ classdef GpuInterface < handle
                 [Error] = ExecuteFourierTransformSingleGpu75(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),obj.HFourierTransformPlan);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ExecuteFourierTransformSingleGpu61(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),obj.HFourierTransformPlan);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ExecuteFourierTransformSingleGpu86(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),obj.HFourierTransformPlan);  
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -730,6 +862,8 @@ classdef GpuInterface < handle
                 [Error] = ExecuteFourierTransformSingleGpu75(GpuNum,Image,Kspace,obj.HFourierTransformPlan);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ExecuteFourierTransformSingleGpu61(GpuNum,Image,Kspace,obj.HFourierTransformPlan);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ExecuteFourierTransformSingleGpu86(GpuNum,Image,Kspace,obj.HFourierTransformPlan);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -748,6 +882,8 @@ classdef GpuInterface < handle
                 [Error] = DivideComplexMatrixRealMatrixSingleGpu75(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HInvFilt,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = DivideComplexMatrixRealMatrixSingleGpu61(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HInvFilt,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = DivideComplexMatrixRealMatrixSingleGpu86(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HInvFilt,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -766,6 +902,8 @@ classdef GpuInterface < handle
                 [Error] = MultiplyComplexMatrixRealMatrixSingleGpu75(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.HSuperFilt,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = MultiplyComplexMatrixRealMatrixSingleGpu61(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.HSuperFilt,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = MultiplyComplexMatrixRealMatrixSingleGpu86(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),obj.HSuperFilt,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -785,6 +923,8 @@ classdef GpuInterface < handle
                 [Error] = ScaleComplexMatrixSingleGpu75(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),Scale,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ScaleComplexMatrixSingleGpu61(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),Scale,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ScaleComplexMatrixSingleGpu86(GpuNum,obj.HKspaceMatrix(GpuChanNum,:),Scale,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -804,6 +944,8 @@ classdef GpuInterface < handle
                 [Error] = ScaleComplexMatrixSingleGpu75(GpuNum,obj.HImageMatrix(GpuChanNum,:),Scale,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ScaleComplexMatrixSingleGpu61(GpuNum,obj.HImageMatrix(GpuChanNum,:),Scale,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ScaleComplexMatrixSingleGpu86(GpuNum,obj.HImageMatrix(GpuChanNum,:),Scale,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -823,6 +965,8 @@ classdef GpuInterface < handle
                 [Error] = ScaleComplexMatrixSingleGpu75(GpuNum,Image,Scale,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = ScaleComplexMatrixSingleGpu61(GpuNum,Image,Scale,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = ScaleComplexMatrixSingleGpu86(GpuNum,Image,Scale,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -843,6 +987,9 @@ classdef GpuInterface < handle
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = CopyComplexMatrixSingleGpuMemAsync61(GpuNum,obj.HSuperLowConj,obj.HSuperLow,obj.ImageMatrixMemDims);  
                 [Error] = ConjugateComplexMatrixSingleGpu61(GpuNum,obj.HSuperLowConj,obj.ImageMatrixMemDims);   
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = CopyComplexMatrixSingleGpuMemAsync86(GpuNum,obj.HSuperLowConj,obj.HSuperLow,obj.ImageMatrixMemDims);  
+                [Error] = ConjugateComplexMatrixSingleGpu86(GpuNum,obj.HSuperLowConj,obj.ImageMatrixMemDims);   
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -861,6 +1008,8 @@ classdef GpuInterface < handle
                 [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu75(GpuNum,obj.HSuperLowSoS,obj.HSuperLow,obj.HSuperLowConj,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu61(GpuNum,obj.HSuperLowSoS,obj.HSuperLow,obj.HSuperLowConj,obj.ImageMatrixMemDims);  
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu86(GpuNum,obj.HSuperLowSoS,obj.HSuperLow,obj.HSuperLowConj,obj.ImageMatrixMemDims);  
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -879,6 +1028,8 @@ classdef GpuInterface < handle
                 [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu75(GpuNum,obj.HSuperHighSoS,obj.HImageMatrix(GpuChanNum,:),obj.HSuperLowConj,obj.ImageMatrixMemDims);  
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu61(GpuNum,obj.HSuperHighSoS,obj.HImageMatrix(GpuChanNum,:),obj.HSuperLowConj,obj.ImageMatrixMemDims);  
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = MultiplyAccumComplexMatrixComplexMatrixSingleGpu86(GpuNum,obj.HSuperHighSoS,obj.HImageMatrix(GpuChanNum,:),obj.HSuperLowConj,obj.ImageMatrixMemDims);  
             end
             if not(strcmp(Error,'no error'))
                 error(Error);
@@ -897,6 +1048,8 @@ classdef GpuInterface < handle
                 [Error] = CudaDeviceWait75(GpuNum);
             elseif str2double(obj.GpuParams.ComputeCapability) == 6.1
                 [Error] = CudaDeviceWait61(GpuNum);
+            elseif str2double(obj.GpuParams.ComputeCapability) == 8.6
+                [Error] = CudaDeviceWait86(GpuNum);
             end
             if not(strcmp(Error,'no error'))
                 error(Error);

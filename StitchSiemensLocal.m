@@ -5,7 +5,6 @@
 classdef StitchSiemensLocal < StitchRecon
     
     properties (SetAccess = private)                    
-        ReconMetaData;
     end    
     methods
 
@@ -13,84 +12,75 @@ classdef StitchSiemensLocal < StitchRecon
 % Constructor
 %==================================================================   
         function obj = StitchSiemensLocal()
-            obj@StitchRecon();          
+            obj@StitchRecon();
+            obj.SetStitchMetaData('DataSource','SiemensLocal');
         end 
-
+     
 %==================================================================
-% DataLoadInit
+% Prepare
 %==================================================================   
-        function DataLoadInit(obj,ReconMetaData,log)       
-            ReconMetaData.DataSource = 'SiemensLocal';
-            ReconMetaData.PullReconLocal = 1;               % do again
-            ReconMetaData.LoadTrajLocal = 1;
-            obj.StitchLoadTrajInfo(ReconMetaData,log); 
-        end        
-        
-%==================================================================
-% Initialize
-%==================================================================   
-        function Initialize(obj,ReconMetaData,log)       
-            ReconMetaData.DataSource = 'SiemensLocal';
-            ReconMetaData.PullReconLocal = 1;               % do again
-            ReconMetaData.LoadTrajLocal = 1;
-            obj.StitchInit(ReconMetaData,log); 
-        end
+        function Prepare(obj,ReconMetaData,log)       
+            if ReconMetaData.UseLocal
+                obj.SetStitchMetaDataStruct(ReconMetaData);
+            end
+            if ReconMetaData.LoadTrajectoryLocal
+                obj.LoadTrajectoryLocal(log);
+            end
+        end         
         
 %==================================================================
 % ProcessSiemensHeaderInfo
 %==================================================================           
-        function ProcessSiemensHeaderInfo(obj,RwsSiemensHandler,log)
-            sWipMemBlock = RwsSiemensHandler.DataHdr.sWipMemBlock;
-            obj.ReconMetaData.Protocol = RwsSiemensHandler.DataHdr.ProtocolName;
-            obj.ReconMetaData.RxChannels = RwsSiemensHandler.DataDims.NCha;
-            obj.ReconMetaData = InterpTrajSiemens(obj,obj.ReconMetaData,sWipMemBlock);   
-            obj.UpdateTestStitchMetaData(obj.ReconMetaData,log);
+        function ProcessSiemensHeaderInfo(obj,DataObj,log)
+            sWipMemBlock = DataObj.DataHdr.sWipMemBlock;
+            ReconMetaData.Protocol = DataObj.DataHdr.ProtocolName;
+            ReconMetaData.RxChannels = DataObj.DataDims.NCha;
+            ReconMetaData = InterpTrajSiemens(obj,ReconMetaData,sWipMemBlock);   
+            obj.SetStitchMetaDataStruct(ReconMetaData);
         end
-
-%==================================================================
-% LocalDataBlockInit
-%==================================================================          
-        function LocalDataBlockInit(obj,RwsSiemensHandler,log)
-            obj.StitchDataProcessInit(RwsSiemensHandler,log);
-        end  
 
 %==================================================================
 % GetDataReadInfo
 %==================================================================             
         function DataReadInfo = GetDataReadInfo(obj)
-            DataReadInfo.ScanDummies = obj.StitchMetaData.Dummies;
+            DataReadInfo.ScanDummies = obj.StitchMetaData.Dummies;                      
             DataReadInfo.SampStart = obj.StitchMetaData.SampStart;
             DataReadInfo.Format = 'SingleArray';                                % other option = 'Complex'. 
             DataReadInfo.NumCol = obj.StitchMetaData.NumCol;
         end 
 
 %==================================================================
-% IntraAcqProcess
-%==================================================================   
-        function IntraAcqProcess(obj,RwsSiemensHandler,log)                 
-            obj.UpdateTestStitchMetaData(obj.ReconMetaData,log);
-            obj.StitchIntraAcqProcess(RwsSiemensHandler,log); 
-        end
+% ProcessSetup
+%==================================================================             
+        function ProcessSetup(obj,ReconMetaData,log)
+            if ReconMetaData.LoadTrajectoryLocal
+                if not(strcmp(ReconMetaData.TrajFile,obj.StitchMetaData.TrajFile))
+                    obj.LoadTrajectoryLocal(log);
+                end
+            end
+            obj.SetStitchMetaDataStruct(ReconMetaData);
+            obj.StitchFullInit(log)
+        end         
 
 %==================================================================
 % PostAcqProcess
 %==================================================================   
-        function PostAcqProcess(obj,RwsSiemensHandler,log,OverRide)
-            if nargin == 4
-                fields = fieldnames(OverRide);
-                for n = 1:length(fields)
-                    obj.StitchMetaData.(fields{n}) = ReconMetaData.(fields{n});
-                end
-            end
-            obj.UpdateTestStitchMetaData(obj.ReconMetaData,log);
-            obj.StitchPostAcqProcess(RwsSiemensHandler,log);
+        function PostAcqProcess(obj,DataObj,log)
+            obj.StitchPostAcqProcess(DataObj,log);
+        end        
+        
+%==================================================================
+% IntraAcqProcess
+%==================================================================   
+        function IntraAcqProcess(obj,DataObj,log)                 
+            obj.StitchIntraAcqProcess(DataObj,log); 
         end
 
 %==================================================================
 % FinishAcqProcess
 %==================================================================   
-        function FinishAcqProcess(obj,RwsSiemensHandler,log)
-            obj.StitchFinishAcqProcess(RwsSiemensHandler,log);
+        function FinishAcqProcess(obj,DataObj,log)
+            obj.StitchFinishAcqProcess(DataObj,log);
         end        
         
 %==================================================================
@@ -102,6 +92,7 @@ classdef StitchSiemensLocal < StitchRecon
         
 %==================================================================
 % InterpTrajSiemens
+%   ** sWipMemBlock should contain all necesarry ReconMetaData
 %==================================================================           
         function ReconMetaData = InterpTrajSiemens(obj,ReconMetaData,sWipMemBlock)
             UserParamsLong = sWipMemBlock.alFree;
@@ -135,13 +126,13 @@ classdef StitchSiemensLocal < StitchRecon
                 TrajName = ['YB_F',num2str(Fov),'_V',num2str(Vox),'_E',num2str(Elip),'_T',num2str(Tro),'_N',num2str(Nproj),'_P',num2str(p),'_S',num2str(samptype),num2str(usamp),'_ID',num2str(id)];
             end
             ReconMetaData.TrajName = TrajName;
-            ReconMetaData.Fov = Fov;
-            ReconMetaData.Vox = Vox;
-            ReconMetaData.Elip = Elip;
-            ReconMetaData.Tro = Tro/10;
-            ReconMetaData.Nproj = Nproj;
-            ReconMetaData.p = p;
-            ReconMetaData.id = id;
+%             ReconMetaData.Fov = Fov;
+%             ReconMetaData.Vox = Vox;
+%             ReconMetaData.Elip = Elip;
+%             ReconMetaData.Tro = Tro/10;
+%             ReconMetaData.Nproj = Nproj;
+%             ReconMetaData.p = p;
+%             ReconMetaData.id = id;
         end
 
 %==================================================================
