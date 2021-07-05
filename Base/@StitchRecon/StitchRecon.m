@@ -48,6 +48,10 @@ classdef StitchRecon < StitchFunctions
             func = str2func(obj.StitchMetaData.ReconFunction);
             obj.Recon = func();
             obj.ReconName = obj.StitchMetaData.ReconFunction;
+            if strcmp(obj.StitchMetaData.ReconBlockLength,'All') || strcmp(obj.StitchMetaData.ReconBlockLength,'all')
+                sz = size(obj.ReconInfoMat);
+                obj.StitchMetaData.ReconBlockLength = sz(2);
+            end
             obj.StitchInit(log);
         end           
      
@@ -55,6 +59,11 @@ classdef StitchRecon < StitchFunctions
 % UpdateReconInfo
 %==================================================================   
         function UpdateReconInfo(obj,log)
+            if not(isfield(obj.StitchMetaData,'StitchRelatedPath'))
+                loc = mfilename('fullpath');
+                ind = strfind(loc,'Base');
+                obj.StitchMetaData.StitchRelatedPath = [loc(1:ind+4),'Supporting\']; 
+            end
             if not(isfield(obj.StitchMetaData,'Kernel'))
                 obj.StitchMetaData.Kernel = 'KBCw2b5p5ss1p6';
             end
@@ -100,6 +109,9 @@ classdef StitchRecon < StitchFunctions
                 if not(strcmp(obj.StitchMetaData.ImagePrecision,'single'))
                     error('Image must be single to be complex');
                 end
+            end
+            if not(isfield(obj.StitchMetaData,'ReconBlockLength'))
+                obj.StitchMetaData.ReconBlockLength = 'All';
             end
         end               
  
