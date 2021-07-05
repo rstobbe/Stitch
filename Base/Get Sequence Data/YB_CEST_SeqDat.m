@@ -7,7 +7,7 @@ function [ExpPars,PanelOutput,err] = YB_CEST_SeqDat(MrProt,DataInfo)
 err.flag = 0;
 err.msg = '';
 
-Status2('busy','Load ''YB_CEST'' Sequence Info',2);
+%Status2('busy','Load ''YB_CEST'' Sequence Info',2);
 
 %---------------------------------------------
 % Read Trajectory
@@ -129,5 +129,5 @@ Panel(19,:) = {'Shift2 (mm)',ExpPars.shift(2),'Output'};
 Panel(20,:) = {'Shift3 (mm)',ExpPars.shift(3),'Output'};
 PanelOutput = cell2struct(Panel,{'label','value','type'},2);
 
-Status2('done','',2);       
+%Status2('done','',2);       
 
