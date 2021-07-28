@@ -28,34 +28,30 @@ Hdr = Hdr0.Phoenix;
 cPos = MeasOffset + HdrLen;
 
 %-----------------------------------------------------
-% Skip scans tagged onto front of data
+% Find relevant scan
 %-----------------------------------------------------
 if NScans > 1
     SeqFound = 0;
     cPos = MeasOffset;
-    for n = 1:(NScans-1)
+    for n = 1:NScans
         cPos = cPos + HdrLen;
+        Seq = Hdr.tSequenceFileName;
+        Seq = char(Seq);
+        if contains(Seq,seqname)
+            SeqFound = 1;
+            break
+        end
         fseek(fid,cPos,'bof');
         [~,filePos,~] = loop_mdh_read(fid,'vd');
         cPos = filePos(end);
         fseek(fid,cPos,'bof');
         HdrLen = fread(fid,1,'uint32');
-        Seq = Hdr.tSequenceFileName;
-        Seq = char(Seq);
-        if ~contains(Seq,seqname)
-            [Hdr0] = ReadHeaderPhoenixConfig(DATA,fid);
-            Hdr = Hdr0.Phoenix;
-        else
-            SeqFound = 1;
-        end
+        [Hdr0] = ReadHeaderPhoenixConfig(DATA,fid);
+        Hdr = Hdr0.Phoenix;
     end
-%     if ~contains(Seq,seqname)
-%         SeqFound = 1;
-%     end
     if SeqFound == 0
         error(['Sequence ',seqname,' not found']);
     end
-    cPos = cPos + HdrLen;
 end
 
 %-----------------------------------------------------
