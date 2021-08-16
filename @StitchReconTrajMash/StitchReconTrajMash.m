@@ -35,9 +35,11 @@ classdef StitchReconTrajMash < handle
             sz = size(WeightArr);
             NumImages = sz(2);
             
-            ReconObj.InitializeImageArray(NumImages,1);    
+            ReconObj.InitializeImageArray(NumImages,1);
+            nbytes = fprintf('Create Image %i of %i',0,NumImages);
             for m = 1:NumImages
-                log.info('Create Image %i of %i',m,NumImages);
+                fprintf(repmat('\b',1,nbytes))
+                nbytes = fprintf(' --- Create Image %i of %i ---',m,NumImages);
                 ReconObj.SuperInit(log);
                 for p = 1:ReconObj.ReconGpuBatches
                     ReconObj.GridInitialize(log);
@@ -74,6 +76,7 @@ classdef StitchReconTrajMash < handle
                     ReconObj.BuildImageArray(1,m,1);
                 end
             end
+            fprintf(repmat('\b',1,nbytes))
         end  
     end
 end

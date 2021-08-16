@@ -21,47 +21,60 @@ NScans = secondInt;
 MeasId = fread(fid,1,'uint32');
 FileId = fread(fid,1,'uint32');
 MeasOffset = fread(fid,1,'uint64');             % points to beginning of header, usually at 10240 bytes
-fseek(fid,MeasOffset,'bof');
-HdrLen = fread(fid,1,'uint32');
-[Hdr0] = ReadHeaderPhoenixConfig(DATA,fid);
-Hdr = Hdr0.Phoenix;
-cPos = MeasOffset + HdrLen;
 
 %-----------------------------------------------------
-% Find relevant scan
+% Find relevant scan(s)
 %-----------------------------------------------------
-if NScans > 1
-    SeqFound = 0;
-    cPos = MeasOffset;
-    for n = 1:NScans
-        cPos = cPos + HdrLen;
-        Seq = Hdr.tSequenceFileName;
-        Seq = char(Seq);
-        if contains(Seq,seqname)
-            SeqFound = 1;
-            break
-        end
+cPos = MeasOffset;
+SeqFound = [];
+for n = 1:NScans
+    fseek(fid,cPos,'bof');
+    HdrLen = fread(fid,1,'uint32');
+    Hdr0 = ReadHeaderPhoenixConfig(DATA,fid);
+    Hdr = Hdr0.Phoenix;
+    Seq = Hdr.tSequenceFileName;
+    Seq = char(Seq);
+    if contains(Seq,seqname)
+        SeqFound = [SeqFound n];
+    end
+    cPos = cPos + HdrLen;
+    DataPos(n) = cPos;
+    if n < NScans
         fseek(fid,cPos,'bof');
         [~,filePos,~] = loop_mdh_read(fid,'vd');
         cPos = filePos(end);
-        fseek(fid,cPos,'bof');
-        HdrLen = fread(fid,1,'uint32');
-        [Hdr0] = ReadHeaderPhoenixConfig(DATA,fid);
-        Hdr = Hdr0.Phoenix;
     end
-    if SeqFound == 0
-        error(['Sequence ',seqname,' not found']);
+end
+
+%-----------------------------------------------------
+% Test for valid scan
+%-----------------------------------------------------
+if isempty(SeqFound)
+    error(['Sequence ',seqname,' not found']);
+end
+GoodSeq = [];
+for n = 1:length(SeqFound)
+    fseek(fid,DataPos(n),'bof');
+    MdhTemp = fread(fid,byteMdh,'uint8=>uint8');
+    MdhTemp = MdhTemp([1:20 41:end],:);     
+    Mdh = EvalMdh(MdhTemp);
+    test = sum(Mdh.sLC);
+    if test == 0
+        GoodSeq = n;
     end
+end
+if isempty(SeqFound)
+    error('A valid sequence was not found');
 end
 
 %-----------------------------------------------------
 % Read First Mdh
 %-----------------------------------------------------
-fseek(fid,cPos,'bof');
+fseek(fid,DataPos(GoodSeq),'bof');
 MdhTemp = fread(fid,byteMdh,'uint8=>uint8');
-MdhTemp = MdhTemp([1:20 41:end],:);     % remove 20 unnecessary bytes
+MdhTemp = MdhTemp([1:20 41:end],:);     
 Mdh = EvalMdh(MdhTemp);
-sLC             = double(Mdh.sLC ) + 1;  % +1: convert to matlab index style
+sLC             = double(Mdh.sLC ) + 1;  
 Dims.NCol       = double(Mdh.ushSamplesInScan).';
 Dims.NCha       = double(Mdh.ushUsedChannels).';
 Dims.NAve       = sLC(:,2).' ;
@@ -94,10 +107,6 @@ fclose(fid);
 %-----------------------------------------------------
 Seq = Hdr.tSequenceFileName;
 Seq = char(Seq);
-if ~contains(Seq,'%CustomerSeq%\')
-    SeqFound = Seq
-    error
-end
 Seq = Seq(15:end);
 
 %-----------------------------------------------------

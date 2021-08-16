@@ -41,6 +41,9 @@ classdef ReadSiemens < handle
 %==================================================================   
         function SetSiemensDataFile(obj,DataFile)
             ind = strfind(DataFile,'\');
+            if isempty(ind)
+                error('Data path not specified properly');
+            end
             obj.DataPath = DataFile(1:ind(end));
             obj.DataFile = DataFile(ind(end)+1:end);
             obj.DataName = DataFile(ind(end)+6:end-4);

@@ -59,6 +59,9 @@ classdef StitchRecon < StitchFunctions
 % UpdateReconInfo
 %==================================================================   
         function UpdateReconInfo(obj,log)
+            if not(isfield(obj.StitchMetaData,'CoilCombine'))
+                obj.StitchMetaData.CoilCombine = 'Super';
+            end
             if not(isfield(obj.StitchMetaData,'StitchRelatedPath'))
                 loc = mfilename('fullpath');
                 ind = strfind(loc,'Base');
@@ -140,7 +143,7 @@ classdef StitchRecon < StitchFunctions
 % LoadTrajectoryLocal 
 %==================================================================   
         function LoadTrajectoryLocal(obj,log)
-            log.info('Retreive Trajectory Info From HardDrive');
+            %log.info('Retreive Trajectory Info From HardDrive');
             warning 'off';                                  % because tries to find functions not on path
             load(obj.StitchMetaData.TrajFile);
             warning 'on';

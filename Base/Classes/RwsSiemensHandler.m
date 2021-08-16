@@ -16,9 +16,14 @@ classdef RwsSiemensHandler < ReadSiemens & ReturnImage
 %==================================================================
 % Constructor
 %==================================================================           
-        function obj = RwsSiemensHandler(LogFile)
+        function obj = RwsSiemensHandler(varargin)
             obj@ReadSiemens;
             obj@ReturnImage;
+            if isempty(varargin)
+                LogFile = '';
+            else
+                LogFile = varargin{1};
+            end
             obj.log = logging.createLog(LogFile); 
         end
 
@@ -34,7 +39,21 @@ classdef RwsSiemensHandler < ReadSiemens & ReturnImage
 % LoadData
 %================================================================== 
         function LoadData(obj,DataFile,ReconMetaData) 
-                
+
+            obj.log.info('Read Siemens Data');
+            %--------------------------------------------
+            % Defaults
+            %--------------------------------------------
+            if ~isfield(ReconMetaData,'SeqName')
+                ReconMetaData.SeqName = 'YUTEsa3f_v1k';
+            end
+            if ~isfield(ReconMetaData,'UseLocal')
+                ReconMetaData.UseLocal = 1;
+            end
+            if ~isfield(ReconMetaData,'LoadTrajectoryLocal')
+                ReconMetaData.LoadTrajectoryLocal = 1;
+            end
+            
             %--------------------------------------------
             % Get Siemens MetaData
             %--------------------------------------------
@@ -56,7 +75,6 @@ classdef RwsSiemensHandler < ReadSiemens & ReturnImage
             %--------------------------------------------    
             obj.SetDataBlockLengthFull;
             obj.ReadSiemensDataBlockInit(obj.ReconHandler.GetDataReadInfo);
-            obj.log.info('Read Siemens Data');
             obj.ReadSiemensDataBlock;
         end         
 

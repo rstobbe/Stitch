@@ -53,6 +53,9 @@ classdef StitchSiemensLocal < StitchRecon
 % ProcessSetup
 %==================================================================             
         function ProcessSetup(obj,ReconMetaData,log)
+            if ~isfield(ReconMetaData,'LoadTrajectoryLocal')
+                ReconMetaData.LoadTrajectoryLocal = 1;
+            end
             if ReconMetaData.LoadTrajectoryLocal
                 if not(strcmp(ReconMetaData.TrajFile,obj.StitchMetaData.TrajFile))
                     obj.LoadTrajectoryLocal(log);
