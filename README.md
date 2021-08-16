@@ -29,5 +29,5 @@ This 'Script' file shows a reconstruction example. This script can be modified f
 
 ## Reference
 If using the Yarnball sequence please reference:  
-Stobbe RW, Beaulieu C. Three-dimensional Yarnball k-space acquisition for accelerated MRI. Magn Reson Med. 2021;85:1840-1854.
+* Stobbe RW, Beaulieu C. Three-dimensional Yarnball k-space acquisition for accelerated MRI. Magn Reson Med. 2021;85:1840-1854.
 
