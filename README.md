@@ -4,9 +4,9 @@ Stitch is MRI reconstruction software for my 3D-spiraling acquisition (Yarnball,
 * Rob Stobbe (University of Alberta)
 * rstobbe@ualberta.ca
 
-Siemens data loading is derived from 'mapVBVD' (Philipp Ehses)
-Feedback logging (Alexander Fyrdahl)  
-Trajectory mashing contributors (Quinn Meadus, Justin Grenier, Richard Thompson)
+Siemens data loading is derived from 'mapVBVD' (Philipp Ehses)  
+Feedback logging (Alexander Fyrdahl)   
+Trajectory mashing contributors (Quinn Meadus, Justin Grenier, Richard Thompson)  
 
 ## Prerequisites
 
@@ -28,6 +28,6 @@ be renamed and saved as desired.
 This 'Script' file shows a reconstruction example. This script can be modified for batch processing etc.
 
 ## Reference
-If using the Yarnball sequence please reference:
+If using the Yarnball sequence please reference:  
 Stobbe RW, Beaulieu C. Three-dimensional Yarnball k-space acquisition for accelerated MRI. Magn Reson Med. 2021;85:1840-1854.
 
