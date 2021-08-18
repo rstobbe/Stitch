@@ -31,6 +31,7 @@ classdef StitchReconTrajMash < handle
             k0 = squeeze(abs(DataObj.DataBlock(1,:,:) + 1j*DataObj.DataBlock(2,:,:)));
             func = str2func(ReconObj.StitchMetaData.TrajMashFunc);
             TrajMash = func(k0,MetaData);
+            obj.TrajMashInfo=TrajMash;
             WeightArr = single(TrajMash.WeightArr);
             sz = size(WeightArr);
             NumImages = sz(2);

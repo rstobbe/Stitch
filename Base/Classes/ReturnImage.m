@@ -119,7 +119,9 @@ classdef ReturnImage < handle
                 Info.VolunteerID2 = Info.VolunteerID;
             end
 
-            IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol,Suffix];
+            ind=strfind(obj.DataFile,'_');%JGG used name of file
+            IMG.name = ['IMG_',obj.DataFile(1:ind(2)-1),'_',Info.Protocol(2:end),Suffix];
+            %IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol,Suffix];
             %IMG.name = ['IMG_',Mid,'_',Info.Protocol,Suffix];
             %IMG.name = ['IMG_',Mid,Suffix];
             
@@ -127,6 +129,9 @@ classdef ReturnImage < handle
             % Save
             %----------------------------------------------
             IMG.Im = single(IMG.Im);            % just to make sure
+             if( isprop(obj.ReconHandler.Recon,'TrajMashInfo'))
+                IMG.TrajMashInfo=obj.ReconHandler.Recon.TrajMashInfo;
+            end
             saveData.IMG = IMG;
             save([path,IMG.name],'saveData');
             
