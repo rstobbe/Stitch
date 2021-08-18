@@ -31,6 +31,7 @@ for n = 1:NScans
     HdrLen = fread(fid,1,'uint32');
     Hdr0 = ReadHeaderPhoenixConfig(DATA,fid);
     HdrArr{n} = Hdr0.Phoenix;
+    ConfigArr{n} = Hdr0.Config;
     cPos = cPos + HdrLen;
     DataPos(n) = cPos;
     if n < NScans
@@ -59,8 +60,8 @@ if isempty(GoodSeq)
 end
 GoodSeqTest = [];
 for n = 1:length(GoodSeq)
-    Hdr = HdrArr{GoodSeq(n)};
-    Seq = Hdr.tSequenceFileName;
+    HdrTemp = HdrArr{GoodSeq(n)};
+    Seq = HdrTemp.tSequenceFileName;
     Seq = char(Seq);
     Seq = Seq(15:end);
     if exist([Seq,'_SeqDat'],'file')
@@ -74,6 +75,8 @@ if length(GoodSeqTest) > 1
     error('This .dat file contains two yarnball sequences');
 end
 GoodSeq = GoodSeqTest;
+Hdr = HdrArr{GoodSeq};
+Config = ConfigArr{GoodSeq};
 
 %-----------------------------------------------------
 % Read First Mdh
@@ -123,10 +126,10 @@ Seq = Seq(15:end);
 Protocol = Hdr.tProtocolName;
 Protocol = char(Protocol);
 Protocol = Protocol(1:end);
-if strcmp(Hdr0.Config.PatientName(1:2),'xx')
-    VolunteerID = Hdr0.Config.Patient;
+if strcmp(Config.PatientName(1:2),'xx')
+    VolunteerID = Config.Patient;
 else 
-    VolunteerID = Hdr0.Config.PatientName;
+    VolunteerID = Config.PatientName;
 end 
 Panel(1,:) = {'','','Output'};
 Panel(2,:) = {'VolunteerID',['"',VolunteerID,'"'],'Output'};
