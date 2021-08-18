@@ -1,4 +1,4 @@
-function DATA = ReadSiemensDataInfo(DATA,filename,seqname)
+function DATA = ReadSiemensDataInfo(DATA,filename)
 
 fid = fopen(filename,'r','l','US-ASCII');
 fseek(fid,0,'bof');
