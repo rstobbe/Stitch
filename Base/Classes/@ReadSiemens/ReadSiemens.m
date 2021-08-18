@@ -46,7 +46,11 @@ classdef ReadSiemens < handle
             end
             obj.DataPath = DataFile(1:ind(end));
             obj.DataFile = DataFile(ind(end)+1:end);
-            obj.DataName = DataFile(ind(end)+6:end-4);
+            if strcmp(DataFile(ind(end)+1:ind(end)+4),'meas')
+                obj.DataName = DataFile(ind(end)+6:end-4);
+            else
+                obj.DataName = DataFile(ind(end)+1:end-4);
+            end
         end           
 
 %==================================================================
@@ -66,8 +70,8 @@ classdef ReadSiemens < handle
 %==================================================================
 % ReadSiemensHeader
 %==================================================================   
-        function ReadSiemensHeader(obj,SeqName)
-            ReadSiemensDataInfo(obj,[obj.DataPath,obj.DataFile],SeqName);
+        function ReadSiemensHeader(obj)
+            ReadSiemensDataInfo(obj,[obj.DataPath,obj.DataFile]);
             %obj.NumAverages = obj.DataHdr.lAverages;
             obj.NumAverages = obj.DataDims.NAve;                % number of averages not being recorded in MDH properly (fix)
         end        

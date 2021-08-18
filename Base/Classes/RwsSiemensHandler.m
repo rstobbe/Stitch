@@ -44,9 +44,6 @@ classdef RwsSiemensHandler < ReadSiemens & ReturnImage
             %--------------------------------------------
             % Defaults
             %--------------------------------------------
-            if ~isfield(ReconMetaData,'SeqName')
-                ReconMetaData.SeqName = 'YUTEsa3f_v1k';
-            end
             if ~isfield(ReconMetaData,'UseLocal')
                 ReconMetaData.UseLocal = 1;
             end
@@ -58,7 +55,7 @@ classdef RwsSiemensHandler < ReadSiemens & ReturnImage
             % Get Siemens MetaData
             %--------------------------------------------
             obj.SetSiemensDataFile(DataFile);
-            obj.ReadSiemensHeader(ReconMetaData.SeqName);
+            obj.ReadSiemensHeader();
 
             %--------------------------------------------
             % Process Siemens Info for Recon

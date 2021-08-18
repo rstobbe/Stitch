@@ -1,4 +1,4 @@
-function DATA = ReadSiemensDataInfo(DATA,filename,seqname)
+function DATA = ReadSiemensPhoenix(DATA,filename)
 
 fid = fopen(filename,'r','l','US-ASCII');
 fseek(fid,0,'bof');
@@ -26,11 +26,17 @@ MeasOffset = fread(fid,1,'uint64');             % points to beginning of header,
 % Find relevant scan(s)
 %-----------------------------------------------------
 cPos = MeasOffset;
+SeqFound = [];
 for n = 1:NScans
     fseek(fid,cPos,'bof');
     HdrLen = fread(fid,1,'uint32');
     Hdr0 = ReadHeaderPhoenixConfig(DATA,fid);
-    HdrArr{n} = Hdr0.Phoenix;
+    Hdr = Hdr0.Phoenix;
+    Seq = Hdr.tSequenceFileName;
+    Seq = char(Seq);
+    if contains(Seq,seqname)
+        SeqFound = [SeqFound n];
+    end
     cPos = cPos + HdrLen;
     DataPos(n) = cPos;
     if n < NScans
@@ -43,37 +49,23 @@ end
 %-----------------------------------------------------
 % Test for valid scan
 %-----------------------------------------------------
+if isempty(SeqFound)
+    error(['Sequence ',seqname,' not found']);
+end
 GoodSeq = [];
-for n = 1:length(DataPos)
+for n = 1:length(SeqFound)
     fseek(fid,DataPos(n),'bof');
     MdhTemp = fread(fid,byteMdh,'uint8=>uint8');
     MdhTemp = MdhTemp([1:20 41:end],:);     
     Mdh = EvalMdh(MdhTemp);
     test = sum(Mdh.sLC);
     if test == 0
-        GoodSeq = [GoodSeq n];
+        GoodSeq = n;
     end
 end
-if isempty(GoodSeq)
+if isempty(SeqFound)
     error('A valid sequence was not found');
 end
-GoodSeqTest = [];
-for n = 1:length(GoodSeq)
-    Hdr = HdrArr{GoodSeq(n)};
-    Seq = Hdr.tSequenceFileName;
-    Seq = char(Seq);
-    Seq = Seq(15:end);
-    if exist([Seq,'_SeqDat'],'file')
-        GoodSeqTest = [GoodSeqTest GoodSeq(n)];
-    end
-end                
-if isempty(GoodSeqTest)
-    error('A valid sequence was not found');
-end
-if length(GoodSeqTest) > 1
-    error('This .dat file contains two yarnball sequences');
-end
-GoodSeq = GoodSeqTest;
 
 %-----------------------------------------------------
 % Read First Mdh
