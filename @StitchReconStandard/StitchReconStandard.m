@@ -41,7 +41,12 @@ classdef StitchReconStandard < handle
                         end
                         Acqs = (m-1)*ReconObj.NumTraj + (TbStart:TbStop);
                         Rcvrs = RbStart:RbStop;
-                        TempDataObj.DataBlock = DataObj.DataBlock(:,Acqs,Rcvrs);
+                        if length(Rcvrs) < ReconObj.ReconGpuBatchRxLen
+                            TempDataObj.DataBlock = zeros(DataObj.NumCol*2,length(Acqs),ReconObj.ReconGpuBatchRxLen,'single');
+                            TempDataObj.DataBlock(:,:,1:length(Rcvrs)) = DataObj.DataBlock(:,Acqs,Rcvrs);
+                        else
+                            TempDataObj.DataBlock = DataObj.DataBlock(:,Acqs,Rcvrs);
+                        end
                         Info.TrajAcqStart = TbStart;
                         Info.TrajAcqStop = TbStop;
                         TempDataObj.DataBlockLength = ReconObj.ReconBlockLength;

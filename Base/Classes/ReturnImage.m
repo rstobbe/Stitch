@@ -21,7 +21,51 @@ classdef ReturnImage < handle
         function Image = WorkspaceReturn(obj)
             Image = obj.ReconHandler.ReturnImage(obj.log);   
         end
+        
+%==================================================================
+% CompassReturnIMG
+%================================================================== 
+        function IMG = CompassReturnIMG(obj)
 
+            IMG.Method = obj.ReconHandler.StitchMetaData.ReconFunction;
+            IMG.Im = obj.ReconHandler.ReturnImage(obj.log);  
+            IMG.ReconInfo = obj.ReconFile;
+            Info = obj.DataInfo;
+            IMG.ExpPars = Info.ExpPars;
+
+            Panel(1,:) = {'','','Output'};
+            Panel(2,:) = {'Stitch Function',obj.ReconHandler.StitchMetaData.ReconFunction,'Output'};
+            PanelOutput0 = cell2struct(Panel,{'label','value','type'},2);
+            IMG.PanelOutput = [Info.PanelOutput;PanelOutput0];
+            IMG.ExpDisp = PanelStruct2Text(IMG.PanelOutput);
+            
+            %----------------------------------------------
+            % Set Up Compass Display
+            %----------------------------------------------
+            MSTRCT.type = 'abs';
+            MSTRCT.dispwid = [0 max(abs(IMG.Im(:)))];
+            MSTRCT.ImInfo.pixdim = obj.ReconHandler.PixDims;
+            MSTRCT.ImInfo.vox = obj.ReconHandler.PixDims(1)*obj.ReconHandler.PixDims(2)*obj.ReconHandler.PixDims(3);
+            MSTRCT.ImInfo.info = IMG.ExpDisp;
+            MSTRCT.ImInfo.baseorient = 'Axial';             % all images should be oriented axially
+            INPUT.Image = IMG.Im;
+            INPUT.MSTRCT = MSTRCT;
+            IMDISP = ImagingPlotSetup(INPUT);
+            IMG.IMDISP = IMDISP;
+            IMG.type = 'Image';
+            IMG.path = obj.DataPath;
+
+            ind = strfind(obj.DataName,'_');
+            Mid = obj.DataName(1:ind(1)-1);
+            ind = strfind(Info.VolunteerID,'.');
+            if not(isempty(ind))
+                Info.VolunteerID2 = Info.VolunteerID(ind(end)+1:end);
+            else
+                Info.VolunteerID2 = Info.VolunteerID;
+            end
+            IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol];
+        end        
+        
 %==================================================================
 % CompassReturnFile
 %================================================================== 
@@ -35,7 +79,6 @@ classdef ReturnImage < handle
 
             Panel(1,:) = {'','','Output'};
             Panel(2,:) = {'Stitch Function',obj.ReconHandler.StitchMetaData.ReconFunction,'Output'};
-            Panel(3,:) = {'Recon Function',obj.ReconFile,'Output'};
             PanelOutput0 = cell2struct(Panel,{'label','value','type'},2);
             IMG.PanelOutput = [Info.PanelOutput;PanelOutput0];
             IMG.ExpDisp = PanelStruct2Text(IMG.PanelOutput);
@@ -89,7 +132,6 @@ classdef ReturnImage < handle
 
             Panel(1,:) = {'','','Output'};
             Panel(2,:) = {'Stitch Function',obj.ReconHandler.StitchMetaData.ReconFunction,'Output'};
-            Panel(3,:) = {'Recon Function',obj.ReconFile,'Output'};
             PanelOutput0 = cell2struct(Panel,{'label','value','type'},2);
             IMG.PanelOutput = [Info.PanelOutput;PanelOutput0];
             IMG.ExpDisp = PanelStruct2Text(IMG.PanelOutput);

@@ -164,7 +164,7 @@ classdef Grid < GpuInterface
                     GpuNum = m-1;
                     GpuChan = p;
                     ChanNum = (p-1)*obj.NumGpuUsed+m;
-                    if ChanNum > obj.RxChannels
+                    if ChanNum > size(DataBlock,3)
                         break
                     end
                     SampDat0 = DataBlock(:,:,ChanNum);      

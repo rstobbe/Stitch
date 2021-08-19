@@ -133,6 +133,14 @@ classdef RwsSiemensHandler < ReadSiemens & ReturnImage
         end
 
 %==================================================================
+% ReturnIMG
+%================================================================== 
+        function IMG = ReturnIMG(obj)
+            obj.log.info('Return IMG');
+            IMG = obj.CompassReturnIMG;  
+        end        
+        
+%==================================================================
 % ReturnImageCompass
 %================================================================== 
         function ReturnImageCompass(obj)

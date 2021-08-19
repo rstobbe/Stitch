@@ -35,7 +35,6 @@ ReconMetaData.ZeroFill = 256;
 %   In this case 'StitchReconTrajMash' requires that a 
 %   trajectory mashing function be defined.  
 %------------------------------------------------------------
-%ReconMetaData.SeqName = 'YUTEsa1d_v1k';
 ReconMetaData.ReconFunction = 'StitchReconTrajMash';
 ReconMetaData.TrajMashFunc = 'TrajMash20RespPhasesGaussian';
 
