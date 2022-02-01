@@ -23,9 +23,9 @@ classdef GpuInterface < handle
 %==================================================================
 % GpuInit
 %==================================================================   
-        function GpuInit(obj)
+        function GpuInit(obj,Gpus2Use)
             obj.GpuParams = gpuDevice; 
-            obj.NumGpuUsed = uint64(obj.StitchMetaData.Gpus2Use);
+            obj.NumGpuUsed = uint64(Gpus2Use);
             obj.CompCap = num2str(round(str2double(obj.GpuParams.ComputeCapability)*10));
         end
 

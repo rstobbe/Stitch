@@ -164,7 +164,7 @@ DATA.DataHdr = Hdr;
 DATA.DataDims = Dims;
 DATA.DataMem = Mem;
 DATA.DataInfo = Info;
-DATA.RxChannels = Dims.NCha;
+
 
 end
 

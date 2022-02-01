@@ -6,7 +6,6 @@ classdef StitchFunctions < Grid & ReturnFov
 
     properties (SetAccess = private)
         Image;
-        ImageArray;
         ImageHighSoS; ImageHighSoSArr;
         ImageLowSoS; ImageLowSoSArr;
         SuperFilt;
@@ -22,50 +21,43 @@ classdef StitchFunctions < Grid & ReturnFov
         end
         
 %==================================================================
-% StitchInit
+% Initialize
 %==================================================================   
-        function StitchInit(obj,log)
-            obj.StitchFreeGpuMemory;
-            obj.GpuInit;
-            obj.GridKernelLoad(log);
-            obj.InvFiltLoad(log);
-            obj.FftInitialize(log);
-            if strcmp(obj.StitchMetaData.CoilCombine,'Super')
-                obj.SuperSetup(log);
-            end
-            obj.InitializeReconGpuBatching(log);
-            obj.GridInitialize(log);
-            if strcmp(obj.StitchMetaData.CoilCombine,'ReturnAll')
-                obj.ReturnAllSetup(log);
-            end
+        function Initialize(obj,Options,AcqInfo,DataObj,log)
+            obj.StitchFreeGpuMemory(log);
+            obj.GpuInit(Options.Gpus2Use);
+            obj.GridKernelLoad(Options,log);
+            obj.InvFiltLoad(Options,log);
+            obj.FftInitialize(Options,log);
+            obj.GridInitialize(Options,AcqInfo,DataObj,log);
         end            
+
+%==================================================================
+% InitializeCoilCombine
+%==================================================================   
+        function InitializeCoilCombine(obj,Options,log)
+            if strcmp(Options.CoilCombine,'Super')
+                obj.SuperSetup(Options,log);
+            end
+            if strcmp(Options.CoilCombine,'ReturnAll') || strcmp(Options.CoilCombine,'Single')
+                obj.ReturnAllSetup(Options,log);
+            end
+        end        
         
 %==================================================================
-% StitchGridDataBlock
+% StitchGridDataBlock 
 %================================================================== 
-        function StitchGridDataBlock(obj,DataObj,Info,log)           
-            if obj.StitchMetaData.LoadTrajectoryLocal == 1
-                Start = Info.TrajAcqStart;
-                Stop = Info.TrajAcqStop;
-                if Stop-Start+1 == DataObj.DataBlockLength
-                    obj.GpuGrid(obj.ReconInfoMat(:,Start:Stop,:),DataObj.DataBlock,log);
-                elseif Stop-Start+1 < DataObj.DataBlockLength
-                    TempReconInfoMat = zeros(DataObj.NumCol,DataObj.DataBlockLength,4,'single');
-                    TempReconInfoMat(:,1:Stop-Start+1,:) = obj.ReconInfoMat(:,Start:Stop,:);
-                    obj.GpuGrid(TempReconInfoMat,DataObj.DataBlock,log);
-                end
-            else
-                obj.GpuGrid(DataObj.ReconInfoMat,DataObj.DataBlock,log);
-            end
+        function StitchGridDataBlock(obj,ReconInfoMat,DataBlock,log)           
+            obj.GpuGrid(ReconInfoMat,DataBlock,log);
         end
 
 %==================================================================
 % StitchFft
 %================================================================== 
-        function StitchFft(obj,log)           
-            %log.info('Fourier Transform');
-            Scale = 1e10;  % for Siemens (should come from above...)
-            Scale = Scale/(obj.SubSamp^3);
+        function StitchFft(obj,Options,log)           
+            log.trace('Fourier Transform');
+            Scale = Options.IntensityScale;  
+            %Scale = Scale/(obj.SubSamp^3);
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -83,10 +75,10 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % StitchFftCombine
 %================================================================== 
-        function StitchFftCombine(obj,log)           
-            %log.info('Fourier Transform');
-            Scale = 1e10;  % for Siemens (should come from above...)
-            Scale = Scale/(obj.SubSamp^3);
+        function StitchFftCombine(obj,Options,log)           
+            log.trace('Fourier Transform');
+            Scale = Options.IntensityScale;  
+            %Scale = Scale/(obj.SubSamp^3);
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -99,8 +91,8 @@ classdef StitchFunctions < Grid & ReturnFov
                     obj.ScaleImage(GpuNum,GpuChan,Scale); 
                 end
             end
-            %log.info('Combine/Return Images');
-            if strcmp(obj.StitchMetaData.CoilCombine,'Super')
+            log.trace('Combine/Return Images');
+            if strcmp(obj.CoilCombine,'Super')
                 obj.SuperInit(log);
                 obj.SuperCombine(log);
             else
@@ -111,14 +103,14 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % SuperSetup
 %==================================================================   
-        function SuperSetup(obj,log)
-            %log.info('Allocate CPU Memory');
-            obj.GetFinalMatrixDimensions;
+        function SuperSetup(obj,Options,log)
+            log.trace('Allocate CPU Memory');
+            obj.GetFinalMatrixDimensions(Options);
             obj.Image = complex(zeros([obj.ImageReturnDims],'single'),0);
             obj.ImageHighSoSArr = complex(zeros([obj.ImageMatrixMemDims,obj.NumGpuUsed],'single'),0);
             obj.ImageLowSoSArr = complex(zeros([obj.ImageMatrixMemDims,obj.NumGpuUsed],'single'),0);        
-            %log.info('Create/Load Super Filter');
-            obj.CreateLoadSuperFilter(log);
+            log.trace('Create/Load Super Filter');
+            obj.CreateLoadSuperFilter(Options,log);
             if not(isempty(obj.HSuperFilt))
                 obj.FreeSuperFiltGpuMem;
             end
@@ -142,7 +134,7 @@ classdef StitchFunctions < Grid & ReturnFov
 % SuperCombine
 %================================================================== 
         function SuperCombine(obj,log)
-            %log.info('Super Combine');
+            log.trace('Super Combine');
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -160,23 +152,23 @@ classdef StitchFunctions < Grid & ReturnFov
                     obj.BuildHighSosImage(GpuNum,GpuChan);           
                 end
             end
-            %log.info('Finish Super (Return HighSoS)');
+            log.trace('Finish Super (Return HighSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
                 obj.ImageHighSoSArr(:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(GpuNum,obj.HSuperHighSoS);
             end
-            %log.info('Finish Super (Return LowSoS)');
+            log.trace('Finish Super (Return LowSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
                 obj.ImageLowSoSArr(:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(GpuNum,obj.HSuperLowSoS);
             end
             obj.CudaDeviceWait(obj.NumGpuUsed-1);
-            %log.info('Finish Super (Combine Gpus)');
+            log.trace('Finish Super (Combine Gpus)');
             for m = 1:obj.NumGpuUsed
                 obj.ImageHighSoS = obj.ImageHighSoS + obj.ImageHighSoSArr(:,:,:,m);
                 obj.ImageLowSoS = obj.ImageLowSoS + real(obj.ImageLowSoSArr(:,:,:,m));
             end
-            %log.info('Finish Super (Create Image)');
+            log.trace('Finish Super (Create Image)');
             obj.Image = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
             obj.Image = obj.ReturnFoV(obj.Image); 
         end        
@@ -185,7 +177,7 @@ classdef StitchFunctions < Grid & ReturnFov
 % SuperCombinePartial
 %================================================================== 
         function SuperCombinePartial(obj,log)
-            %log.info('Super Combine Partial');
+            log.trace('Super Combine Partial');
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -209,23 +201,23 @@ classdef StitchFunctions < Grid & ReturnFov
 % SuperCombineFinish
 %==================================================================         
         function SuperCombineFinish(obj,log)
-            %log.info('Finish Super Partial (Return HighSoS)');
+            log.trace('Finish Super Partial (Return HighSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
                 obj.ImageHighSoSArr(:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(GpuNum,obj.HSuperHighSoS);
             end
-            %log.info('Finish Super Partial (Return LowSoS)');
+            log.trace('Finish Super Partial (Return LowSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
                 obj.ImageLowSoSArr(:,:,:,m) = obj.ReturnOneImageMatrixGpuMemSpecify(GpuNum,obj.HSuperLowSoS);
             end
             obj.CudaDeviceWait(obj.NumGpuUsed-1);
-            %log.info('Finish Super Partial (Combine Gpus)');
+            log.trace('Finish Super Partial (Combine Gpus)');
             for m = 1:obj.NumGpuUsed
                 obj.ImageHighSoS = obj.ImageHighSoS + obj.ImageHighSoSArr(:,:,:,m);
                 obj.ImageLowSoS = obj.ImageLowSoS + real(obj.ImageLowSoSArr(:,:,:,m));
             end
-            %log.info('Finish Super (Create Image)');
+            log.trace('Finish Super (Create Image)');
             obj.Image = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
             obj.Image = obj.ReturnFoV(obj.Image); 
         end
@@ -233,11 +225,12 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % CreateLoadSuperFilter
 %==================================================================         
-        function CreateLoadSuperFilter(obj,log)
-            fwidx = 2*round((obj.StitchMetaData.Fov/obj.StitchMetaData.Super.ProfRes)/2);
-            fwidy = 2*round((obj.StitchMetaData.Fov/obj.StitchMetaData.Super.ProfRes)/2);
-            fwidz = 2*round((obj.StitchMetaData.Fov/obj.StitchMetaData.Super.ProfRes)/2);
-            F0 = Kaiser_v1b(fwidx,fwidy,fwidz,obj.StitchMetaData.Super.ProfFilt,'unsym');
+        function CreateLoadSuperFilter(obj,Options,log)
+            log.trace('Create Super Filter');
+            fwidx = 2*round((Options.Fov/Options.SuperProfRes)/2);
+            fwidy = 2*round((Options.Fov/Options.SuperProfRes)/2);
+            fwidz = 2*round((Options.Fov/Options.SuperProfRes)/2);
+            F0 = Kaiser_v1b(fwidx,fwidy,fwidz,Options.SuperProfFilt,'unsym');
             x = obj.ImageMatrixMemDims(1);
             y = obj.ImageMatrixMemDims(2);
             z = obj.ImageMatrixMemDims(3);
@@ -248,27 +241,33 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % ReturnAllSetup
 %==================================================================   
-        function ReturnAllSetup(obj,log)
-            %log.info('Allocate CPU Memory');
-            if strcmp(obj.StitchMetaData.ImageType,'complex')
-                obj.Image = complex(zeros([obj.ImageMatrixMemDims,obj.ReconGpuBatchRxLen],obj.StitchMetaData.ImagePrecision),0);
-            elseif strcmp(obj.StitchMetaData.ImageType,'abs')
-                obj.Image = zeros([obj.ImageMatrixMemDims,obj.ReconGpuBatchRxLen],obj.StitchMetaData.ImagePrecision);
+        function ReturnAllSetup(obj,Options,log)
+            log.trace('Allocate CPU Memory');
+            obj.GetFinalMatrixDimensions(Options);
+            ReconGpuBatchRxLen = obj.ChanPerGpu * obj.NumGpuUsed;
+            if strcmp(Options.ImageType,'complex')
+                obj.Image = complex(zeros([obj.ImageReturnDims,ReconGpuBatchRxLen],Options.ImagePrecision),0);
+            elseif strcmp(Options.ImageType,'abs')
+                obj.Image = zeros([obj.ImageReturnDims,ReconGpuBatchRxLen],Options.ImagePrecision);
             end
         end  
               
 %==================================================================
 % ReturnAllImages
 %==================================================================         
-        function ReturnAllImages(obj,log)            
-            %log.info('Return Images from GPU');
+        function ReturnAllImages(obj,Options,log)            
+            log.trace('Return Images from GPU');
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
                     GpuChan = p;
                     ChanNum = (p-1)*obj.NumGpuUsed+m;
                     FullImage = obj.ReturnOneImageMatrixGpuMem(GpuNum,GpuChan);
-                    obj.Image(:,:,:,ChanNum) = obj.ReturnFoV(FullImage);
+                    if strcmp(Options.ImageType,'abs')
+                        FullImage = abs(FullImage);
+                    end
+                    FullImage = cast(FullImage,Options.ImagePrecision);
+                    obj.Image(:,:,:,ChanNum) = obj.ReturnFoV(Options,FullImage);
                 end
             end
         end  
@@ -276,7 +275,8 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % StitchFreeGpuMemory
 %==================================================================           
-        function StitchFreeGpuMemory(obj) 
+        function StitchFreeGpuMemory(obj,log) 
+            log.trace('Free GPU Memory');
             obj.ReleaseGriddingGpuMem;
             obj.ReleaseSuperGpuMem;
         end   
@@ -292,54 +292,13 @@ classdef StitchFunctions < Grid & ReturnFov
                 obj.FreeSuperMatricesGpuMem;
             end
         end   
-              
-%==================================================================
-% InitializeImageArray
-%==================================================================          
-        function InitializeImageArray(obj,Dim5,Dim6) 
-            if strcmp(obj.StitchMetaData.CoilCombine,'Super')
-                if strcmp(obj.StitchMetaData.ImageType,'complex')
-                    obj.ImageArray = complex(zeros([size(obj.Image),1,Dim5,Dim6],obj.StitchMetaData.ImagePrecision),0);
-                elseif strcmp(obj.StitchMetaData.ImageType,'abs')
-                    obj.ImageArray = zeros([size(obj.Image),1,Dim5,Dim6],obj.StitchMetaData.ImagePrecision);
-                end
-            elseif strcmp(obj.StitchMetaData.CoilCombine,'ReturnAll')
-                sz = size(obj.Image);
-                if strcmp(obj.StitchMetaData.ImageType,'complex')
-                    obj.ImageArray = complex(zeros([sz(1:3),obj.StitchMetaData.RxChannels,Dim5,Dim6],obj.StitchMetaData.ImagePrecision),0);
-                elseif strcmp(obj.StitchMetaData.ImageType,'abs')
-                    obj.ImageArray = zeros([sz(1:3),obj.StitchMetaData.RxChannels,Dim5,Dim6],obj.StitchMetaData.ImagePrecision);
-                end    
-            end
-        end  
-
-%==================================================================
-% BuildImageArray
-%==================================================================            
-        function BuildImageArray(obj,Dim4,Dim5,Dim6)
-            if strcmp(obj.StitchMetaData.ImageType,'complex')
-                obj.ImageArray(:,:,:,Dim4,Dim5,Dim6) = obj.Image;
-            elseif strcmp(obj.StitchMetaData.ImageType,'abs')
-                obj.ImageArray(:,:,:,Dim4,Dim5,Dim6) = abs(obj.Image);
-            end
-        end
-
-%==================================================================
-% StitchReturnImage
-%==================================================================           
-        function Image = StitchReturnImage(obj,log) 
-            %Image = obj.ImageArray;
-            %--
-            obj.ImageArray = permute(obj.ImageArray,[2 1 3 4 5 6 7]);
-            Image = flip(obj.ImageArray,2);
-            %--
-        end  
 
 %==================================================================
 % Destructor
 %================================================================== 
         function delete(obj)
-            obj.StitchFreeGpuMemory;
+            obj.ReleaseGriddingGpuMem;
+            obj.ReleaseSuperGpuMem;
         end 
 
     end

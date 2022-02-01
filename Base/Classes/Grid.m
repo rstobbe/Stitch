@@ -13,11 +13,6 @@ classdef Grid < GpuInterface
         kShift;
         kStep;
         NumTraj;
-        RxChannels;
-        ReconBlockLength;
-        ReconBlocksPerImage;
-        ReconGpuBatches;
-        ReconGpuBatchRxLen;
     end
     methods 
 
@@ -32,68 +27,33 @@ classdef Grid < GpuInterface
 %==================================================================
 % GridKernelLoad
 %==================================================================   
-        function GridKernelLoad(obj,log)        
-            %log.info('Retreive Kernel From HardDrive');
-            load(obj.StitchMetaData.KernelFile);
-            KRNprms = saveData.KRNprms;
-            iKern = round(1e9*(1/(KRNprms.res*KRNprms.DesforSS)))/1e9;
-            Kern = KRNprms.Kern;
-            chW = ceil(((KRNprms.W*KRNprms.DesforSS)-2)/2);                    
+        function GridKernelLoad(obj,Options,log)        
+            log.trace('Load Kernel All GPUs');
+            iKern = round(1e9*(1/(Options.Kernel.res*Options.Kernel.DesforSS)))/1e9;
+            Kern = Options.Kernel.Kern;
+            chW = ceil(((Options.Kernel.W*Options.Kernel.DesforSS)-2)/2);                    
             if (chW+1)*iKern > length(Kern)
                 error;
             end
-            %log.info('Load Kernel All GPUs');
-            obj.LoadKernelGpuMem(Kern,iKern,chW,KRNprms.convscaleval);
-            obj.SubSamp = KRNprms.DesforSS;
+            obj.LoadKernelGpuMem(Kern,iKern,chW,Options.Kernel.convscaleval);
+            obj.SubSamp = Options.Kernel.DesforSS;
             obj.KernHalfWid = chW;
         end
 
 %==================================================================
 % InvFiltLoad
 %==================================================================   
-        function InvFiltLoad(obj,log)        
-            %log.info('Retreive InvFilt From HardDrive');
-            load(obj.StitchMetaData.InvFiltFile);
-            %log.info('Load InvFilt All GPUs');
-            obj.LoadInvFiltGpuMem(saveData.IFprms.V);   
+        function InvFiltLoad(obj,Options,log)        
+            log.trace('Load InvFilt All GPUs');
+            obj.LoadInvFiltGpuMem(Options.InvFilt.V);   
         end        
-    
-%==================================================================
-% TestMinimumZeroFill
-%==================================================================           
-        function TestMinimumZeroFill(obj,log)
-            TestkMatCentre = ceil(obj.SubSamp*obj.StitchMetaData.kMaxRad/obj.StitchMetaData.kStep) + (obj.KernHalfWid + 2); 
-            TestkSz = TestkMatCentre*2 - 1;
-            if TestkSz > obj.StitchMetaData.ZeroFill
-                error(['Zero-Fill is to small. kSz = ',num2str(TestkSz)]);
-            end 
-        end
-
-%==================================================================
-% InitializeReconGpuBatching
-%==================================================================   
-        function InitializeReconGpuBatching(obj,log) 
-            obj.RxChannels = obj.StitchMetaData.RxChannels; 
-            for n = 1:20
-                obj.ReconGpuBatches = n;
-                ChanPerGpu = ceil(obj.StitchMetaData.RxChannels/(obj.StitchMetaData.GpuTot*obj.ReconGpuBatches));
-                MemoryNeededImages = ChanPerGpu*obj.ImageMatrixMemDims(1)*obj.ImageMatrixMemDims(2)*obj.ImageMatrixMemDims(3)*16;  % k-space + image (complex & single)  
-                MemoryNeededData = ChanPerGpu*obj.StitchMetaData.ReconBlockLength*obj.StitchMetaData.NumCol*8;  % complex & single
-                MemoryNeededTotal = MemoryNeededImages + MemoryNeededData;
-                if MemoryNeededTotal*1.1 < obj.GpuParams.AvailableMemory
-                    break
-                end
-            end
-            obj.SetChanPerGpu(ChanPerGpu);
-            obj.ReconGpuBatchRxLen = ChanPerGpu * obj.StitchMetaData.GpuTot;  
-        end        
-
+       
 %==================================================================
 % FftInitialize
 %==================================================================   
-        function FftInitialize(obj,log)        
-            %log.info('Setup Fourier Transform');
-            ZeroFillArray = [obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill];          % isotropic for now
+        function FftInitialize(obj,Options,log)        
+            log.trace('Setup Fourier Transform');
+            ZeroFillArray = [Options.ZeroFill Options.ZeroFill Options.ZeroFill];          % isotropic for now
             if not(isempty(obj.HFourierTransformPlan))
                 obj.ReleaseFourierTransform;
             end 
@@ -103,45 +63,40 @@ classdef Grid < GpuInterface
 %==================================================================
 % GridInitialize
 %==================================================================   
-        function GridInitialize(obj,log)
-
+        function GridInitialize(obj,Options,AcqInfo,DataObj,log)
+            
             %--------------------------------------
             % General Init
             %--------------------------------------
-            obj.FovShift = [0 0 0];
-            obj.kMatCentre = ceil(obj.SubSamp*obj.StitchMetaData.kMaxRad/obj.StitchMetaData.kStep) + (obj.KernHalfWid + 2); 
+            log.trace('Gridding Initialize');
+            obj.FovShift = DataObj.FovShift;
+            obj.kStep = AcqInfo.kStep;
+            obj.NumTraj = AcqInfo.NumTraj; 
+            obj.kMatCentre = ceil(obj.SubSamp*AcqInfo.kMaxRad/AcqInfo.kStep) + (obj.KernHalfWid + 2); 
             obj.kSz = obj.kMatCentre*2 - 1;
-            if obj.kSz > obj.StitchMetaData.ZeroFill
+            if obj.kSz > Options.ZeroFill
                 error(['Zero-Fill is to small. kSz = ',num2str(obj.kSz)]);
             end 
-            obj.kStep = obj.StitchMetaData.kStep;
-            obj.kShift = (obj.StitchMetaData.ZeroFill/2+1)-((obj.kSz+1)/2);
-            obj.NumTraj = obj.StitchMetaData.NumTraj;
-            
+            obj.kShift = (Options.ZeroFill/2+1)-((obj.kSz+1)/2);
+
             %--------------------------------------
             % Allocate GPU Memory
             %--------------------------------------
-            obj.GpuInit;
+            log.trace('Allocate GPU Memory');
             if not(isempty(obj.HReconInfo))
                 obj.FreeReconInfoGpuMem;
             end
-            ReconInfoSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.ReconBlockLength 4];
+            ReconInfoSize = [AcqInfo.NumCol Options.ReconTrajBlockLength 4];
             obj.AllocateReconInfoGpuMem(ReconInfoSize);                       
             if not(isempty(obj.HSampDat))
                 obj.FreeSampDatGpuMem;
             end
-            SampDatSize = [obj.StitchMetaData.NumCol obj.StitchMetaData.ReconBlockLength];
+            SampDatSize = [AcqInfo.NumCol Options.ReconTrajBlockLength];
             obj.AllocateSampDatGpuMem(SampDatSize);
             if not(isempty(obj.HImageMatrix))
                 obj.FreeKspaceImageMatricesGpuMem;
             end
-            obj.AllocateKspaceImageMatricesGpuMem([obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill obj.StitchMetaData.ZeroFill]);   % isotropic for now   
-            
-            %--------------------------------------
-            % BlocksPerImage
-            %--------------------------------------
-            obj.ReconBlockLength = obj.StitchMetaData.ReconBlockLength;
-            obj.ReconBlocksPerImage = ceil(obj.NumTraj/obj.ReconBlockLength);
+            obj.AllocateKspaceImageMatricesGpuMem([Options.ZeroFill Options.ZeroFill Options.ZeroFill]);   % isotropic for now   
         end
           
 %==================================================================
