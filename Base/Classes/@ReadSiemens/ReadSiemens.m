@@ -144,6 +144,10 @@ classdef ReadSiemens < handle
                     case 'NumAverages'
                         obj.NumAverages = obj.DataHdr.lAverages;                % something wrong with 'obj.DataDims.NAve' 
                         Params{n} = obj.DataHdr.lAverages;
+                    case 'Usamp_T1'
+                        Params{n} = obj.DataInfo.ExpPars.Usamp_T1;
+                    case 'skip'
+                        Params{n} = obj.DataInfo.ExpPars.skip;
                 end
             end
         end

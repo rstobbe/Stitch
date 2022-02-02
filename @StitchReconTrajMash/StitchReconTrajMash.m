@@ -28,6 +28,9 @@ classdef StitchReconTrajMash < handle
             MetaData.TR = Values{1};
             MetaData.NumAverages = Values{2};            
             MetaData.NumTraj = ReconObj.StitchMetaData.NumTraj;
+            if(isfield(ReconObj.StitchMetaData,'UseAverages'))
+                MetaData.UseAverages=ReconObj.StitchMetaData.UseAverages;
+            end
             k0 = squeeze(abs(DataObj.DataBlock(1,:,:) + 1j*DataObj.DataBlock(2,:,:)));
             func = str2func(ReconObj.StitchMetaData.TrajMashFunc);
             TrajMash = func(k0,MetaData);

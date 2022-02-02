@@ -171,6 +171,11 @@ classdef ReturnImage < handle
             % Save
             %----------------------------------------------
             IMG.Im = single(IMG.Im);            % just to make sure
+            
+              temp =  abs(IMG.Im);
+              temp2 = temp(21:end-20,21:end-20,21:end-20,:,:);
+              temp2 = uint16(temp2/max(temp2(:))*2^16);
+              IMG.Im = flipud(permute(temp2,[3 2 1 4 5]));
              if( isprop(obj.ReconHandler.Recon,'TrajMashInfo'))
                 IMG.TrajMashInfo=obj.ReconHandler.Recon.TrajMashInfo;
             end
