@@ -1,11 +1,10 @@
 %================================================================
-% StitchStandard1a
-%   - Standard gridding reconstruction
+% StitchLungWater1a
+%   - LungWater gridding reconstruction
 %   - 'AcqInfo' comes from local computer
-%   - All images reconstructed with same 'Options'
 %================================================================
 
-classdef StitchStandard1a < handle
+classdef StitchLungWater1a < handle
 
     properties (SetAccess = private)                                     
         Stitch
@@ -14,12 +13,15 @@ classdef StitchStandard1a < handle
         DataObj
         AcqInfo
         NumAcqsPerReadout
-        NumImageAverages
+        NumAverages
+        NumImages
         NumTrajs
         RxChannels
         ReconRxBatches
         ReconRxBatchLen
         Image
+        Data
+        TrajMashInfo
     end
     
     methods 
@@ -27,16 +29,13 @@ classdef StitchStandard1a < handle
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchStandard1a(Options)
+        function [obj] = StitchLungWater1a(Options)
             obj.Options = Options;
             obj.Log = Log('');
         end                
         
 %==================================================================
 % Setup
-%   - some recons may have different 'Options' for different Acqs 
-%   - here the same 'Options' are used for all Acqs 
-%       - parameters are based off of the first Acq
 %==================================================================         
         function Setup(obj)
             if isempty(obj.Options.AcqInfoFile)
@@ -54,18 +53,30 @@ classdef StitchStandard1a < handle
 % CreateImage
 %================================================================== 
         function CreateImage(obj,DataObj) 
-            obj.LoadData(DataObj);
+            obj.SetData(DataObj);
             obj.Initialize;
+            obj.LoadData;
+            obj.TrajMash;
             obj.Process;
             obj.Finish;
         end           
         
 %==================================================================
-% LoadData
+% SetData
 %================================================================== 
-        function LoadData(obj,DataObj) 
+        function SetData(obj,DataObj) 
             obj.DataObj = DataObj;  
             obj.DataObj.Initialize(obj.Options);
+        end          
+
+%==================================================================
+% LoadData
+%================================================================== 
+        function LoadData(obj) 
+            obj.Log.info('Load Data'); 
+            for AcqNum = 1:obj.NumAcqsPerReadout  
+                obj.Data{AcqNum} = obj.DataObj.ReturnAllData(AcqNum,obj.AcqInfo{AcqNum},obj.Log);
+            end
         end          
         
 %==================================================================
@@ -83,7 +94,7 @@ classdef StitchStandard1a < handle
             end 
             obj.RxChannels = obj.DataObj.RxChannels;
             obj.NumTrajs = obj.AcqInfo{1}.NumTraj;
-            obj.NumImageAverages = obj.DataObj.NumAverages;
+            obj.NumAverages = obj.DataObj.NumAverages;
             if obj.RxChannels == 1          
                 obj.Options.SetGpus2Use(1);
                 obj.Options.SetCoilCombine('Single');
@@ -96,7 +107,6 @@ classdef StitchStandard1a < handle
             for AcqNum = 1:obj.NumAcqsPerReadout         
                 obj.Stitch{AcqNum}.InitializeCoilCombine(obj.Options,obj.Log);
             end
-            obj.InitializeImageArray;
         end
       
 %==================================================================
@@ -145,7 +155,7 @@ classdef StitchStandard1a < handle
 %==================================================================          
         function InitializeImageArray(obj) 
             Dim5 = obj.NumAcqsPerReadout;
-            Dim6 = obj.NumImageAverages;
+            Dim6 = obj.NumImages;
             sz = size(obj.Stitch{1}.Image);
             if strcmp(obj.Options.CoilCombine,'Super')
                 if strcmp(obj.Options.ImageType,'complex')
@@ -161,16 +171,36 @@ classdef StitchStandard1a < handle
                 end    
             end
         end         
+
+%==================================================================
+% TrajMash
+%   - use first acquisition if multiple
+%==================================================================         
+        function TrajMash(obj)
+            obj.Log.info('Create TrajMash');
+            NeededSeqParams{1} = 'TR';
+            Values = obj.DataObj.ExtractSequenceParams(NeededSeqParams);
+            MetaData.TR = Values{1};
+            MetaData.NumAverages = obj.NumAverages;            
+            MetaData.NumTraj = obj.NumTrajs;
+            AcqNum = 1;                            
+            k0 = squeeze(abs(obj.Data{AcqNum}(1,:,:) + 1j*obj.Data{AcqNum}(2,:,:)));
+            func = str2func(obj.Options.TrajMashFunc);
+            obj.TrajMashInfo = func(k0,MetaData);
+            sz = size(obj.TrajMashInfo.WeightArr);
+            obj.NumImages = sz(2);
+        end
         
 %==================================================================
 % Process
 %================================================================== 
         function Process(obj)
+            obj.InitializeImageArray;
             %------------------------------------------------------
-            % Averages 
+            % Images 
             %------------------------------------------------------
-            for AveNum = 1:obj.NumImageAverages
-                obj.Log.info('Create Image %i of %i',AveNum,obj.NumImageAverages);  
+            for ImNum = 1:obj.NumImages
+                obj.Log.info('Create Image %i of %i',ImNum,obj.NumImages);  
                 if strcmp(obj.Options.CoilCombine,'Super')
                     for AcqNum = 1:obj.NumAcqsPerReadout
                         obj.Stitch{AcqNum}.SuperInit(obj.Log);
@@ -213,15 +243,17 @@ classdef StitchStandard1a < handle
                             else
                                 ReconInfoBlock = obj.AcqInfo{AcqNum}.ReconInfoMat(:,Trajs,:);
                             end
-                            obj.DataObj.ReadDataBlock(Trajs,Rcvrs,AveNum,AcqNum,obj.AcqInfo{AcqNum},obj.Log);
-                            obj.Stitch{AcqNum}.StitchGridDataBlock(ReconInfoBlock,obj.DataObj.DataBlock,obj.Log);
+                            RbSize = obj.ReconRxBatchLen;
+                            TbSize = obj.Options.ReconTrajBlockLength;
+                            DataBlock = DoTrajMash(obj.Data{AcqNum},obj.TrajMashInfo.WeightArr(:,ImNum),obj.NumAverages,TbStart,TbStop,TbSize,RbStart,RbStop,RbSize);
+                            obj.Stitch{AcqNum}.StitchGridDataBlock(ReconInfoBlock,DataBlock,obj.Log);
                         end
                     end
                     for AcqNum = 1:obj.NumAcqsPerReadout
                         obj.Stitch{AcqNum}.StitchFft(obj.Options,obj.Log);        
                         if strcmp(obj.Options.CoilCombine,'ReturnAll') || strcmp(obj.Options.CoilCombine,'Single')
                             obj.Stitch{AcqNum}.ReturnAllImages(obj.Options,obj.Log);
-                            obj.Image(:,:,:,Rcvrs,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image;
+                            obj.Image(:,:,:,Rcvrs,AcqNum,ImNum) = obj.Stitch{AcqNum}.Image;
                         elseif strcmp(obj.Options.CoilCombine,'Super')
                             obj.Stitch{AcqNum}.SuperCombinePartial(obj.Log);
                         end
@@ -229,8 +261,8 @@ classdef StitchStandard1a < handle
                 end
                 for AcqNum = 1:obj.NumAcqsPerReadout
                     if strcmp(obj.Options.CoilCombine,'Super')
-                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Log);
-                        obj.Stitch{AcqNum}.BuildImageArray(1,AcqNum,AveNum);
+                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Options,obj.Log);
+                        obj.Image(:,:,:,1,AcqNum,ImNum) = obj.Stitch{AcqNum}.Image;
                     end 
                 end
             end

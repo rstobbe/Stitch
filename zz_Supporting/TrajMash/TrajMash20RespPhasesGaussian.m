@@ -55,6 +55,9 @@ if(nCoil>2)
         inds(j) = length(find(abs(cc(:,j))>0.80));
     end
     indsToUse=find(inds>(nCoil/4));
+      if(isempty(indsToUse))
+        indsToUse=find(inds>(0.5*max(inds)));
+    end
 else
     indsToUse=[1,2];
 end
@@ -106,6 +109,7 @@ NumImages = length(RespPhaseImages);
 NormWeightArr = zeros(NumAcqs,NumImages);
 for RespPhaseNum = 1:NumImages  
     GaussWin = gaussmf(0:0.005:1,[0.05 0.5]);
+    %GaussWin = gaussmf(0:0.005:1,[0.001 0.5]);
     if(0.5+RespPhaseImages(RespPhaseNum)<1)
         x=[0.025+0.005+RespPhaseImages(RespPhaseNum):0.005:1 0:0.005:0.025+RespPhaseImages(RespPhaseNum)];
     else
@@ -118,6 +122,7 @@ for RespPhaseNum = 1:NumImages
         Weight = interp1(x,GaussWin,RelBreathPhaseAcrossAves);
         Weight(isnan(Weight)) = 0;
         NormWeight = Weight / (sum(Weight));
+        NormWeight(isnan(NormWeight))=0;%JGG Added this... not sure why needed, what changed?
         NormWeightArr((Traj-1)*MetaData.NumAverages+1:Traj*MetaData.NumAverages,RespPhaseNum) = NormWeight;  
     end
 end

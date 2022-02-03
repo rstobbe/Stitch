@@ -79,7 +79,21 @@ classdef SiemensDataObject < handle
             tDataBlock = BuildDataArray([obj.DataPath,obj.DataFile],QDataMemPosArr,QDataInfo);
             obj.DataBlock = tDataBlock(:,:,Rcvrs);
         end
-               
+
+%==================================================================
+% ReturnAllData
+%================================================================== 
+        function AllData = ReturnAllData(obj,AcqNum,AcqInfo,Log)
+            QDataMemPosArr = uint64(obj.DataMem.Pos(:) + obj.DataScanHeaderBytes);                                  
+            QDataReadSize = obj.DataChannelHeaderBytes/8 + obj.DataDims.NCol;
+            QDataStart = obj.DataChannelHeaderBytes/8 + AcqInfo.SampStart;
+            QDataCol = AcqInfo.NumCol;
+            QDataCha = obj.DataDims.NCha;
+            QDataBlockLength = length(obj.DataMem.Pos);
+            QDataInfo = uint64([QDataReadSize QDataStart QDataCol QDataCha QDataBlockLength]);
+            AllData = BuildDataArray([obj.DataPath,obj.DataFile],QDataMemPosArr,QDataInfo);
+        end        
+        
 %==================================================================
 % ExtractSequenceParams
 %==================================================================         

@@ -23,13 +23,12 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % Initialize
 %==================================================================   
-        function Initialize(obj,Options,AcqInfo,DataObj,log)
+        function Initialize(obj,Options,log)
             obj.StitchFreeGpuMemory(log);
             obj.GpuInit(Options.Gpus2Use);
             obj.GridKernelLoad(Options,log);
             obj.InvFiltLoad(Options,log);
             obj.FftInitialize(Options,log);
-            obj.GridInitialize(Options,AcqInfo,DataObj,log);
         end            
 
 %==================================================================
@@ -133,7 +132,7 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % SuperCombine
 %================================================================== 
-        function SuperCombine(obj,log)
+        function SuperCombine(obj,Options,log)
             log.trace('Super Combine');
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
@@ -169,8 +168,12 @@ classdef StitchFunctions < Grid & ReturnFov
                 obj.ImageLowSoS = obj.ImageLowSoS + real(obj.ImageLowSoSArr(:,:,:,m));
             end
             log.trace('Finish Super (Create Image)');
-            obj.Image = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
-            obj.Image = obj.ReturnFoV(obj.Image); 
+            FullImage = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
+            if strcmp(Options.ImageType,'abs')
+                FullImage = abs(FullImage);
+            end
+            FullImage = cast(FullImage,Options.ImagePrecision);
+            obj.Image = obj.ReturnFoV(Options,FullImage);
         end        
 
 %==================================================================
@@ -200,7 +203,7 @@ classdef StitchFunctions < Grid & ReturnFov
 %==================================================================
 % SuperCombineFinish
 %==================================================================         
-        function SuperCombineFinish(obj,log)
+        function SuperCombineFinish(obj,Options,log)
             log.trace('Finish Super Partial (Return HighSoS)');
             for m = 1:obj.NumGpuUsed
                 GpuNum = m-1;
@@ -218,8 +221,12 @@ classdef StitchFunctions < Grid & ReturnFov
                 obj.ImageLowSoS = obj.ImageLowSoS + real(obj.ImageLowSoSArr(:,:,:,m));
             end
             log.trace('Finish Super (Create Image)');
-            obj.Image = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
-            obj.Image = obj.ReturnFoV(obj.Image); 
+            FullImage = obj.ImageHighSoS./(sqrt(obj.ImageLowSoS));
+            if strcmp(Options.ImageType,'abs')
+                FullImage = abs(FullImage);
+            end
+            FullImage = cast(FullImage,Options.ImagePrecision);
+            obj.Image = obj.ReturnFoV(Options,FullImage);
         end
                  
 %==================================================================
