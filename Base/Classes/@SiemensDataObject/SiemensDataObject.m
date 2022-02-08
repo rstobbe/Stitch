@@ -44,9 +44,13 @@ classdef SiemensDataObject < handle
 %==================================================================           
         function Initialize(obj,Options)
             ReadSiemensDataInfo(obj,[obj.DataPath,obj.DataFile]);
-            obj.NumAverages = obj.DataHdr.lAverages;  
-            obj.AcqsPerImage = obj.DataDims.Lin;                                    % includes dummies
-            obj.TotalAcqs = obj.DataDims.Lin * obj.DataDims.NAve;   
+            obj.NumAverages = obj.DataHdr.lAverages; 
+            if obj.DataDims.NAve < obj.DataHdr.lAverages
+                obj.AcqsPerImage = obj.DataDims.Lin/obj.DataHdr.lAverages;                                    % includes dummies
+            else
+                obj.AcqsPerImage = obj.DataDims.Lin; 
+            end
+            obj.TotalAcqs = obj.AcqsPerImage * obj.NumAverages;   
             obj.RxChannels = obj.DataDims.NCha;  
             obj.DataBlockLength = Options.ReconTrajBlockLength;
             if strcmp(Options.IntensityScale,'Default')
