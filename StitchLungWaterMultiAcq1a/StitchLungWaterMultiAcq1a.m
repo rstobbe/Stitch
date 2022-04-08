@@ -186,7 +186,9 @@ classdef StitchLungWaterMultiAcq1a < handle
             NeededSeqParams{1} = 'TR';
             Values = obj.DataObj{1}.ExtractSequenceParams(NeededSeqParams);
             MetaData.TR = Values{1};
-            MetaData.NumAverages = obj.NumAverages;            
+            %------------- probably a mod to make here
+            MetaData.NumAverages = obj.NumAverages;   
+            %-------------
             MetaData.NumTraj = obj.NumTrajs;
             AcqNum = 1;                            
             k0 = squeeze(abs(obj.Data{AcqNum}(1,:,:) + 1j*obj.Data{AcqNum}(2,:,:)));
