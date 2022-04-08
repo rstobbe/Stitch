@@ -8,11 +8,13 @@ classdef StitchReconInfoHolder < handle
 properties (SetAccess = private)                   
     name
     kStep
-%     npro
     Dummies
     NumTraj
     NumCol
     SampStart
+    SampStartTime
+    SamplingTimeOnTrajectory
+    SamplingPtAtCentre
     SampEnd
     Fov
     Vox
@@ -37,9 +39,6 @@ end
 function SetkStep(STCH,kStep)     
     STCH.kStep = kStep;
 end
-% function Setnpro(STCH,npro)                   % test / remove   
-%     STCH.npro = npro;
-% end
 function SetDummies(STCH,Dummies)     
     STCH.Dummies = Dummies;
 end
@@ -51,6 +50,15 @@ function SetNumCol(STCH,NumCol)
 end
 function SetSampStart(STCH,SampStart)     
     STCH.SampStart = SampStart;
+end
+function SetSampStartTime(STCH,SampStartTime)     
+    STCH.SampStartTime = SampStartTime;
+end
+function SetSamplingPtAtCentre(STCH,SamplingPtAtCentre)     
+    STCH.SamplingPtAtCentre = SamplingPtAtCentre;
+end
+function SetSamplingTimeOnTrajectory(STCH,SamplingTimeOnTrajectory)     
+    STCH.SamplingTimeOnTrajectory = SamplingTimeOnTrajectory;
 end
 function SetSampEnd(STCH,SampEnd)     
     STCH.SampEnd = SampEnd;

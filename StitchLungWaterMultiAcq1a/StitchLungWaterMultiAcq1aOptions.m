@@ -2,7 +2,7 @@
 % 
 %==================================================================
 
-classdef StitchStandard1aOptions < handle
+classdef StitchLungWaterMultiAcq1aOptions < handle
 
 properties (SetAccess = private)                   
     StitchSupportingPath
@@ -26,7 +26,8 @@ properties (SetAccess = private)
     SubSampMatrix
     Fov
     SubSampFov
-    IntensityScale = 'Default'      
+    IntensityScale = 'Default'
+    TrajMashFunc = 'TrajMashDummy'
 end
 
 methods 
@@ -34,7 +35,7 @@ methods
 %==================================================================
 % Constructor
 %==================================================================  
-function obj = StitchStandard1aOptions             
+function obj = StitchLungWaterMultiAcq1aOptions             
 end
 
 %==================================================================
@@ -78,30 +79,11 @@ end
         function SetKernelFile(obj,val)
             obj.KernelFile = val;
         end          
-
-%==================================================================
-% SetInvFiltFile
-%==================================================================   
-        function SetInvFiltFile(obj,val)
-            obj.InvFiltFile = val;
-            load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
-            obj.InvFilt = saveData.IFprms;
-            obj.ZeroFill = obj.InvFilt.ZF;
-        end           
-
-%==================================================================
-% SetDummyInvFilt
-%==================================================================   
-        function SetDummyInvFilt(obj)         
-            obj.InvFilt.V = ones([obj.ZeroFill,obj.ZeroFill,obj.ZeroFill],'single');
-            obj.InvFiltFile = 'Dummy';
-        end         
         
 %==================================================================
 % SetZeroFill
 %==================================================================   
         function SetZeroFill(obj,val)
-            obj.InvFiltFile = [];
             obj.ZeroFill = val;
         end           
 
@@ -140,6 +122,13 @@ end
         function SetIntensityScale(obj,val)
             obj.IntensityScale = val;
         end         
+
+%==================================================================
+% SetTrajMashFunc
+%==================================================================   
+        function SetTrajMashFunc(obj,val)
+            obj.TrajMashFunc = val;
+        end             
         
 %==================================================================
 % Initialize
@@ -173,11 +162,9 @@ end
             if obj.ZeroFill < obj.SubSampMatrix
                 error('Specified ZeroFill is too small');
             end
-            if isempty(obj.InvFiltFile)
-                obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];
-                load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
-                obj.InvFilt = saveData.IFprms;
-            end
+            obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];   
+            load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
+            obj.InvFilt = saveData.IFprms;
             
             %------------------------------------------------------
             % Test Gpus

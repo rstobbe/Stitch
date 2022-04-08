@@ -41,6 +41,22 @@ classdef Grid < GpuInterface
         end
 
 %==================================================================
+% GridComplexKernelLoad
+%==================================================================   
+        function GridComplexKernelLoad(obj,Options,log)        
+            log.trace('Load Complex Kernel All GPUs');
+            iKern = round(1e9*(1/(Options.Kernel.res*Options.Kernel.DesforSS)))/1e9;
+            Kern = Options.Kernel.Kern;
+            chW = ceil(((Options.Kernel.W*Options.Kernel.DesforSS)-2)/2);                    
+            if (chW+1)*iKern > length(Kern)
+                error;
+            end
+            obj.LoadComplexKernelGpuMem(Kern,iKern,chW,Options.Kernel.convscaleval);
+            obj.SubSamp = Options.Kernel.DesforSS;
+            obj.KernHalfWid = chW;
+        end        
+        
+%==================================================================
 % InvFiltLoad
 %==================================================================   
         function InvFiltLoad(obj,Options,log)        
@@ -98,7 +114,23 @@ classdef Grid < GpuInterface
             end
             obj.AllocateKspaceImageMatricesGpuMem([Options.ZeroFill Options.ZeroFill Options.ZeroFill]);   % isotropic for now   
         end
-          
+
+%==================================================================
+% PhaseCorrInitialize
+%==================================================================          
+        function PhaseCorrInitialize(obj,log)
+            log.trace('Phase Correction Initialize');
+            obj.AllocateComplexPhaseImageGpuMem;
+        end
+
+%==================================================================
+% LoadStaticPhaseImage
+%==================================================================          
+        function LoadStaticPhaseImage(obj,log)
+            log.trace('Load Static Phase Image');
+            obj.LoadComplexPhaseImageGpuMem(obj,LoadGpuNum,GpuChanNum,PhaseImage)
+        end        
+        
 %==================================================================
 % GpuGrid
 %================================================================== 
@@ -138,7 +170,87 @@ classdef Grid < GpuInterface
                 end
             end
         end        
-                  
+
+%==================================================================
+% GpuGridFullKern
+%================================================================== 
+        function GpuGridFullKern(obj,ReconInfoBlock,DataBlock,log)
+
+            %------------------------------------------------------
+            % Manipulation
+            %------------------------------------------------------    
+            [ReconInfoBlock,DataBlock] = obj.PerformFovShift(ReconInfoBlock,DataBlock,log);                                                       
+            [ReconInfoBlock] = obj.KspaceManipulate(ReconInfoBlock,log);
+            
+            %------------------------------------------------------
+            % Write Gpus
+            %------------------------------------------------------   
+            obj.LoadReconInfoGpuMemAsync(ReconInfoBlock);                   % will write to all GPUs    
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;
+                    ChanNum = (p-1)*obj.NumGpuUsed+m;
+                    if ChanNum > size(DataBlock,3)
+                        break
+                    end
+                    SampDat0 = DataBlock(:,:,ChanNum);      
+                    obj.LoadSampDatGpuMemAsync(GpuNum,GpuChan,SampDat0);                 
+                end
+            end 
+            
+            %------------------------------------------------------
+            % Grid
+            %------------------------------------------------------  
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;                                                     
+                    obj.GridSampDatFullKern(GpuNum,GpuChan);
+                end
+            end
+        end         
+
+%==================================================================
+% GpuGridComplexKern
+%================================================================== 
+        function GpuGridComplexKern(obj,ReconInfoBlock,DataBlock,log)
+
+            %------------------------------------------------------
+            % Manipulation
+            %------------------------------------------------------    
+            [ReconInfoBlock,DataBlock] = obj.PerformFovShift(ReconInfoBlock,DataBlock,log);                                                       
+            [ReconInfoBlock] = obj.KspaceManipulate(ReconInfoBlock,log);
+            
+            %------------------------------------------------------
+            % Write Gpus
+            %------------------------------------------------------   
+            obj.LoadReconInfoGpuMemAsync(ReconInfoBlock);                   % will write to all GPUs    
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;
+                    ChanNum = (p-1)*obj.NumGpuUsed+m;
+                    if ChanNum > size(DataBlock,3)
+                        break
+                    end
+                    SampDat0 = DataBlock(:,:,ChanNum);      
+                    obj.LoadSampDatGpuMemAsync(GpuNum,GpuChan,SampDat0);                 
+                end
+            end 
+            
+            %------------------------------------------------------
+            % Grid
+            %------------------------------------------------------  
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;                                                     
+                    obj.GridSampDatComplexKern(GpuNum,GpuChan);
+                end
+            end
+        end         
+        
 %==================================================================
 % ReleaseGriddingGpuMem
 %==================================================================

@@ -2,7 +2,7 @@
 % 
 %==================================================================
 
-classdef StitchStandard1aOptions < handle
+classdef StitchFtPhase1aOptions < handle
 
 properties (SetAccess = private)                   
     StitchSupportingPath
@@ -34,7 +34,7 @@ methods
 %==================================================================
 % Constructor
 %==================================================================  
-function obj = StitchStandard1aOptions             
+function obj = StitchFtPhase1aOptions             
 end
 
 %==================================================================
@@ -78,30 +78,11 @@ end
         function SetKernelFile(obj,val)
             obj.KernelFile = val;
         end          
-
-%==================================================================
-% SetInvFiltFile
-%==================================================================   
-        function SetInvFiltFile(obj,val)
-            obj.InvFiltFile = val;
-            load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
-            obj.InvFilt = saveData.IFprms;
-            obj.ZeroFill = obj.InvFilt.ZF;
-        end           
-
-%==================================================================
-% SetDummyInvFilt
-%==================================================================   
-        function SetDummyInvFilt(obj)         
-            obj.InvFilt.V = ones([obj.ZeroFill,obj.ZeroFill,obj.ZeroFill],'single');
-            obj.InvFiltFile = 'Dummy';
-        end         
         
 %==================================================================
 % SetZeroFill
 %==================================================================   
         function SetZeroFill(obj,val)
-            obj.InvFiltFile = [];
             obj.ZeroFill = val;
         end           
 
@@ -173,11 +154,9 @@ end
             if obj.ZeroFill < obj.SubSampMatrix
                 error('Specified ZeroFill is too small');
             end
-            if isempty(obj.InvFiltFile)
-                obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];
-                load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
-                obj.InvFilt = saveData.IFprms;
-            end
+            obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];   
+            load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
+            obj.InvFilt = saveData.IFprms;
             
             %------------------------------------------------------
             % Test Gpus

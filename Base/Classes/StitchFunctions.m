@@ -51,6 +51,20 @@ classdef StitchFunctions < Grid & ReturnFov
         end
 
 %==================================================================
+% StitchGridDataBlockFullKern 
+%================================================================== 
+        function StitchGridDataBlockFullKern(obj,ReconInfoMat,DataBlock,log)           
+            obj.GpuGridFullKern(ReconInfoMat,DataBlock,log);
+        end   
+        
+%==================================================================
+% StitchGridDataBlockComplexKern 
+%================================================================== 
+        function StitchGridDataBlockComplexKern(obj,ReconInfoMat,DataBlock,log)           
+            obj.GpuGridComplexKern(ReconInfoMat,DataBlock,log);
+        end          
+        
+%==================================================================
 % StitchFft
 %================================================================== 
         function StitchFft(obj,Options,log)           

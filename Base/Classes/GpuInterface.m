@@ -5,6 +5,7 @@ classdef GpuInterface < handle
         HSampDat; SampDatMemDims;
         HReconInfo; ReconInfoMemDims;
         HKernel; iKern; KernHw; KernelMemDims; ConvScaleVal;
+        HPhaseImage;
         HKspaceMatrix;
         HImageMatrix; ImageMatrixMemDims;
         HTempMatrix;
@@ -82,6 +83,58 @@ classdef GpuInterface < handle
             end
         end          
 
+%==================================================================
+% LoadComplexKernelGpuMem
+%   - All GPUs
+%================================================================== 
+        function LoadComplexKernelGpuMem(obj,Kernel,iKern,KernHw,ConvScaleVal)
+            if ~isa(Kernel,'single')
+                error('Kernel must be in single format');
+            end
+            obj.ConvScaleVal = ConvScaleVal;
+            obj.iKern = uint64(iKern);
+            obj.KernHw = uint64(KernHw);
+            sz = size(Kernel);
+            obj.KernelMemDims = uint64(sz);
+            func = str2func(['AllocateLoadComplexMatrixAllGpuMem',obj.CompCap]);
+            [obj.HKernel,Error] = func(obj.NumGpuUsed,Kernel);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end        
+
+%==================================================================
+% AllocateStaticPhaseImageGpuMem
+%   - Diffusion context
+%   - Only need one per GPU 
+%   - rewritten for each trajectory 
+%================================================================== 
+        function AllocateStaticPhaseImageGpuMem(obj)    
+            obj.HPhaseImage = zeros(obj.NumGpuUsed,'uint64');
+            func = str2func(['AllocateComplexMatrixAllGpuMem',obj.CompCap]);
+            [obj.HPhaseImage,Error] = func(obj.NumGpuUsed,obj.KernelMemDims);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+        
+%==================================================================
+% LoadStaticPhaseImageGpuMem
+%   - Diffusion context
+%   - Load a StatcPhaseImage for each trajectory
+%================================================================== 
+        function LoadComplexPhaseImageGpuMem(obj,PhaseImage)
+            sz = size(PhaseImage);
+            if sz(1) ~= obj.KernelMemDims
+                error('Phase image must be same dimensions as Kernel');
+            end
+            func = str2func(['LoadComplexMatrixAllGpuMem',obj.CompCap]);
+            [Error] = func(...stuff... PhaseImage);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+        
 %==================================================================
 % FreeKernelGpuMem
 %================================================================== 
@@ -417,7 +470,39 @@ classdef GpuInterface < handle
                 error(Error);
             end
         end            
-                       
+
+%==================================================================
+% GridSampDatFullKern
+%==================================================================                      
+        function GridSampDatFullKern(obj,GpuNum,GpuChanNum)
+            if GpuNum > obj.NumGpuUsed-1
+                error('Specified ''LoadGpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            func = str2func(['GridSampDatFullKern',obj.CompCap]);
+            [Error] = func(GpuNum,obj.HSampDat(GpuChanNum,:),obj.HReconInfo,obj.HKernel,obj.HKspaceMatrix(GpuChanNum,:),...
+                                    obj.SampDatMemDims,obj.KernelMemDims,obj.ImageMatrixMemDims,obj.iKern,obj.KernHw);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+
+%==================================================================
+% GridSampDatComplexKern
+%==================================================================                      
+        function GridSampDatComplexKern(obj,GpuNum,GpuChanNum)
+            if GpuNum > obj.NumGpuUsed-1
+                error('Specified ''LoadGpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            func = str2func(['GridSampDatComplexKern',obj.CompCap]);
+            [Error] = func(GpuNum,obj.HSampDat(GpuChanNum,:),obj.HReconInfo,obj.HKernel,obj.HKspaceMatrix(GpuChanNum,:),...
+                                    obj.SampDatMemDims,obj.KernelMemDims,obj.ImageMatrixMemDims,obj.iKern,obj.KernHw);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+        
 %==================================================================
 % ReturnOneKspaceMatrixGpuMem
 %================================================================== 

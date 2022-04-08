@@ -2,7 +2,7 @@
 % 
 %==================================================================
 
-classdef StitchStandard1aOptions < handle
+classdef StitchStandardFullKern1aOptions < handle
 
 properties (SetAccess = private)                   
     StitchSupportingPath
@@ -34,7 +34,7 @@ methods
 %==================================================================
 % Constructor
 %==================================================================  
-function obj = StitchStandard1aOptions             
+function obj = StitchStandardFullKern1aOptions             
 end
 
 %==================================================================
