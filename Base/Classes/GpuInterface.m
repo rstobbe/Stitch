@@ -124,15 +124,15 @@ classdef GpuInterface < handle
 %   - Load a StatcPhaseImage for each trajectory
 %================================================================== 
         function LoadComplexPhaseImageGpuMem(obj,PhaseImage)
-            sz = size(PhaseImage);
-            if sz(1) ~= obj.KernelMemDims
-                error('Phase image must be same dimensions as Kernel');
-            end
-            func = str2func(['LoadComplexMatrixAllGpuMem',obj.CompCap]);
-            [Error] = func(...stuff... PhaseImage);
-            if not(strcmp(Error,'no error'))
-                error(Error);
-            end
+%             sz = size(PhaseImage);
+%             if sz(1) ~= obj.KernelMemDims
+%                 error('Phase image must be same dimensions as Kernel');
+%             end
+%             func = str2func(['LoadComplexMatrixAllGpuMem',obj.CompCap]);
+%             [Error] = func(...stuff... PhaseImage);
+%             if not(strcmp(Error,'no error'))
+%                 error(Error);
+%             end
         end         
         
 %==================================================================

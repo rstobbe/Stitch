@@ -29,7 +29,7 @@ classdef StitchLungWaterMultiAcq1a < handle
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchLungWater1a(Options)
+        function [obj] = StitchLungWaterMultiAcq1a(Options)
             obj.Options = Options;
             obj.Log = Log('');
         end                
@@ -76,11 +76,11 @@ classdef StitchLungWaterMultiAcq1a < handle
 %================================================================== 
         function LoadData(obj) 
             obj.Log.info('Load Data'); 
+            test = obj.DataObj{1}.ReturnAllData(1,obj.AcqInfo{1},obj.Log);
+            sz = size(test);
+            obj.Data = zeros(sz(1),sz(2)*length(obj.DataObj),sz(3),'single');
             for n = 1:length(obj.DataObj)
-                for AcqNum = 1:obj.NumAcqsPerReadout  
-                    %----- Data needs to be concatenated over acqs ----
-                    %obj.Data{AcqNum} = obj.DataObj{n}.ReturnAllData(AcqNum,obj.AcqInfo{AcqNum},obj.Log);
-                end
+                obj.Data(:,(n-1)*sz(2)+1:n*sz(2),:) = obj.DataObj{n}.ReturnAllData(1,obj.AcqInfo{1},obj.Log);
             end
         end          
         
@@ -100,18 +100,15 @@ classdef StitchLungWaterMultiAcq1a < handle
             obj.RxChannels = obj.DataObj{1}.RxChannels;
             obj.NumTrajs = obj.AcqInfo{1}.NumTraj;
             obj.NumAverages = obj.DataObj{1}.NumAverages;
+            obj.NumAverages =  obj.NumAverages * length(obj.DataObj);
             if obj.RxChannels == 1          
                 obj.Options.SetGpus2Use(1);
                 obj.Options.SetCoilCombine('Single');
-            end
-            for AcqNum = 1:obj.NumAcqsPerReadout         
-                obj.Stitch{AcqNum} = StitchFunctions();
-                obj.Stitch{AcqNum}.Initialize(obj.Options,obj.Log);
-            end
-            obj.InitializeReconRxBatching;
-            for AcqNum = 1:obj.NumAcqsPerReadout         
-                obj.Stitch{AcqNum}.InitializeCoilCombine(obj.Options,obj.Log);
-            end
+            end       
+            obj.Stitch = StitchFunctions();
+            obj.Stitch.Initialize(obj.Options,obj.Log);
+            obj.InitializeReconRxBatching;       
+            obj.Stitch.InitializeCoilCombine(obj.Options,obj.Log);
         end
       
 %==================================================================
@@ -124,21 +121,19 @@ classdef StitchLungWaterMultiAcq1a < handle
             %   - All images the same size
             %   - Memory = k-space + image (complex & single)
             %---------------------------------------------------
-            ImageMemory = obj.Stitch{1}.ImageMatrixMemDims(1)*obj.Stitch{1}.ImageMatrixMemDims(2)*obj.Stitch{1}.ImageMatrixMemDims(3)*16;  
+            ImageMemory = obj.Stitch.ImageMatrixMemDims(1)*obj.Stitch.ImageMatrixMemDims(2)*obj.Stitch.ImageMatrixMemDims(3)*16;  
 
             %---------------------------------------------------
             % Data Memory (for this recon)
             %    - complex & single
             %---------------------------------------------------
             DataMemory = 0;
-            for AcqNum = 1:length(obj.AcqInfo)
-                DataMemory = DataMemory + obj.Options.ReconTrajBlockLength*obj.AcqInfo{AcqNum}.NumCol*8;
-            end
+            DataMemory = DataMemory + obj.Options.ReconTrajBlockLength*obj.AcqInfo{1}.NumCol*8;
             
             %---------------------------------------------------
             % Available Memory
             %---------------------------------------------------
-            AvailableMemory = obj.Stitch{1}.GpuParams.AvailableMemory;
+            AvailableMemory = obj.Stitch.GpuParams.AvailableMemory;
             for n = 1:20
                 obj.ReconRxBatches = n;
                 ChanPerGpu = ceil(obj.RxChannels/(obj.Options.Gpus2Use*obj.ReconRxBatches));
@@ -149,9 +144,7 @@ classdef StitchLungWaterMultiAcq1a < handle
                     break
                 end
             end
-            for n = 1:length(obj.Stitch)
-                obj.Stitch{n}.SetChanPerGpu(ChanPerGpu);
-            end
+            obj.Stitch.SetChanPerGpu(ChanPerGpu);
             obj.ReconRxBatchLen = ChanPerGpu * obj.Options.Gpus2Use;  
         end          
 
@@ -161,7 +154,7 @@ classdef StitchLungWaterMultiAcq1a < handle
         function InitializeImageArray(obj) 
             Dim5 = obj.NumAcqsPerReadout;
             Dim6 = obj.NumImages;
-            sz = size(obj.Stitch{1}.Image);
+            sz = size(obj.Stitch.Image);
             if strcmp(obj.Options.CoilCombine,'Super')
                 if strcmp(obj.Options.ImageType,'complex')
                     obj.Image = complex(zeros([sz(1:3),1,Dim5,Dim6],obj.Options.ImagePrecision),0);
@@ -186,12 +179,9 @@ classdef StitchLungWaterMultiAcq1a < handle
             NeededSeqParams{1} = 'TR';
             Values = obj.DataObj{1}.ExtractSequenceParams(NeededSeqParams);
             MetaData.TR = Values{1};
-            %------------- probably a mod to make here
             MetaData.NumAverages = obj.NumAverages;   
-            %-------------
-            MetaData.NumTraj = obj.NumTrajs;
-            AcqNum = 1;                            
-            k0 = squeeze(abs(obj.Data{AcqNum}(1,:,:) + 1j*obj.Data{AcqNum}(2,:,:)));
+            MetaData.NumTraj = obj.NumTrajs;                          
+            k0 = squeeze(abs(obj.Data(1,:,:) + 1j*obj.Data(2,:,:)));
             func = str2func(obj.Options.TrajMashFunc);
             obj.TrajMashInfo = func(k0,MetaData);
             sz = size(obj.TrajMashInfo.WeightArr);
@@ -209,18 +199,14 @@ classdef StitchLungWaterMultiAcq1a < handle
             for ImNum = 1:obj.NumImages
                 obj.Log.info('Create Image %i of %i',ImNum,obj.NumImages);  
                 if strcmp(obj.Options.CoilCombine,'Super')
-                    for AcqNum = 1:obj.NumAcqsPerReadout
-                        obj.Stitch{AcqNum}.SuperInit(obj.Log);
-                    end
+                    obj.Stitch.SuperInit(obj.Log);
                 end          
                 %------------------------------------------------------
                 % ReconRxBatches
                 %   - for limited memory GPUs (and many RxChannels)
                 %------------------------------------------------------
                 for q = 1:obj.ReconRxBatches 
-                    for AcqNum = 1:obj.NumAcqsPerReadout
-                        obj.Stitch{AcqNum}.GridInitialize(obj.Options,obj.AcqInfo{AcqNum},obj.DataObj{1},obj.Log);        % done each time making new images
-                    end
+                    obj.Stitch.GridInitialize(obj.Options,obj.AcqInfo{1},obj.DataObj{1},obj.Log);        % done each time making new images
                     RbStart = (q-1)*obj.ReconRxBatchLen + 1;
                     RbStop = q*obj.ReconRxBatchLen;
                     if RbStop > obj.RxChannels
@@ -243,59 +229,37 @@ classdef StitchLungWaterMultiAcq1a < handle
                         %   - example: multiple-echo waveforms
                         %   - be at bottom of looping for 'simultaneous' acq/read/grid context 
                         %------------------------------------------------------
-                        for AcqNum = 1:obj.NumAcqsPerReadout
-                            if length(Trajs) < obj.Options.ReconTrajBlockLength
-                                ReconInfoBlock = zeros(obj.AcqInfo{AcqNum}.NumCol,obj.Options.ReconTrajBlockLength,4,'single');
-                                ReconInfoBlock(:,1:length(Trajs),:) = obj.AcqInfo{AcqNum}.ReconInfo(:,Trajs,:);
-                            else
-                                ReconInfoBlock = obj.AcqInfo{AcqNum}.ReconInfoMat(:,Trajs,:);
-                            end
-                            RbSize = obj.ReconRxBatchLen;
-                            TbSize = obj.Options.ReconTrajBlockLength;
-                            DataBlock = DoTrajMash(obj.Data{AcqNum},obj.TrajMashInfo.WeightArr(:,ImNum),obj.NumAverages,TbStart,TbStop,TbSize,RbStart,RbStop,RbSize);
-                            obj.Stitch{AcqNum}.StitchGridDataBlock(ReconInfoBlock,DataBlock,obj.Log);
+                        if length(Trajs) < obj.Options.ReconTrajBlockLength
+                            ReconInfoBlock = zeros(obj.AcqInfo{1}.NumCol,obj.Options.ReconTrajBlockLength,4,'single');
+                            ReconInfoBlock(:,1:length(Trajs),:) = obj.AcqInfo{1}.ReconInfo(:,Trajs,:);
+                        else
+                            ReconInfoBlock = obj.AcqInfo{1}.ReconInfoMat(:,Trajs,:);
                         end
+                        RbSize = obj.ReconRxBatchLen;
+                        TbSize = obj.Options.ReconTrajBlockLength;
+                        DataBlock = DoTrajMash(obj.Data,obj.TrajMashInfo.WeightArr(:,ImNum),obj.NumAverages,TbStart,TbStop,TbSize,RbStart,RbStop,RbSize);
+                        obj.Stitch.StitchGridDataBlock(ReconInfoBlock,DataBlock,obj.Log);
                     end
-                    for AcqNum = 1:obj.NumAcqsPerReadout
-                        obj.Stitch{AcqNum}.StitchFft(obj.Options,obj.Log);        
-                        if strcmp(obj.Options.CoilCombine,'ReturnAll') || strcmp(obj.Options.CoilCombine,'Single')
-                            obj.Stitch{AcqNum}.ReturnAllImages(obj.Options,obj.Log);
-                            obj.Image(:,:,:,Rcvrs,AcqNum,ImNum) = obj.Stitch{AcqNum}.Image;
-                        elseif strcmp(obj.Options.CoilCombine,'Super')
-                            obj.Stitch{AcqNum}.SuperCombinePartial(obj.Log);
-                        end
-                    end               
+                    obj.Stitch.StitchFft(obj.Options,obj.Log);        
+                    if strcmp(obj.Options.CoilCombine,'ReturnAll') || strcmp(obj.Options.CoilCombine,'Single')
+                        obj.Stitch.ReturnAllImages(obj.Options,obj.Log);
+                        obj.Image(:,:,:,Rcvrs,AcqNum,ImNum) = obj.Stitch.Image;
+                    elseif strcmp(obj.Options.CoilCombine,'Super')
+                        obj.Stitch.SuperCombinePartial(obj.Log);
+                    end            
                 end
-                for AcqNum = 1:obj.NumAcqsPerReadout
-                    if strcmp(obj.Options.CoilCombine,'Super')
-                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Options,obj.Log);
-                        obj.Image(:,:,:,1,AcqNum,ImNum) = obj.Stitch{AcqNum}.Image;
-                    end 
-                end
+                if strcmp(obj.Options.CoilCombine,'Super')
+                    obj.Stitch.SuperCombineFinish(obj.Options,obj.Log);
+                    obj.Image(:,:,:,1,1,ImNum) = obj.Stitch.Image;
+                end 
             end
-        end
-
-%==================================================================
-% ReturnImageCompass
-%==================================================================         
-        function ReturnImageCompass(obj)
-            ReturnOneImageCompass(obj);
-        end
-
-%==================================================================
-% ReturnIMG
-%==================================================================         
-        function IMG = ReturnIMG(obj)
-            IMG = ReturnOneImage(obj);
-        end        
+        end       
         
 %==================================================================
 % Finish
 %================================================================== 
         function Finish(obj)
-            for AcqNum = 1:obj.NumAcqsPerReadout
-                obj.Stitch{AcqNum}.StitchFreeGpuMemory(obj.Log);
-            end
+            obj.Stitch.StitchFreeGpuMemory(obj.Log);
         end
         
         

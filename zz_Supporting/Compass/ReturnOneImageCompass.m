@@ -5,8 +5,22 @@
 function ReturnOneImageCompass(Recon)
 
     IMG.Method = class(Recon);
-    IMG.Im = Recon.Image;  
-    Info = Recon.DataObj.DataInfo;           % Base on first
+    IMG.Im = Recon.Image;             
+    Panel(1,:) = {'','','Output'};
+    Panel(2,:) = {'Recon Function',IMG.Method,'Output'};
+    PanelOutput0 = cell2struct(Panel,{'label','value','type'},2);
+    for i = 1: size(Recon.DataObj,2)
+        Info(i) = Recon.DataObj{i}.DataInfo;
+        %Info = Recon.DataObj.DataInfo;           % Base on first
+        IMG.ExpPars(i) = Info(i).ExpPars;
+        IMG.PanelOutput{i} = [PanelOutput0;Info(i).PanelOutput];
+        IMG.ExpDisp{i} = PanelStruct2Text(IMG.PanelOutput{i});
+
+    end
+        
+        
+    %{    
+    %Info = Recon.DataObj.DataInfo;           % Base on first
     IMG.ExpPars = Info.ExpPars;
 
     Panel(1,:) = {'','','Output'};
@@ -14,11 +28,11 @@ function ReturnOneImageCompass(Recon)
     PanelOutput0 = cell2struct(Panel,{'label','value','type'},2);
     IMG.PanelOutput = [PanelOutput0;Info.PanelOutput];
     IMG.ExpDisp = PanelStruct2Text(IMG.PanelOutput);
- 
+ %}
     %----------------------------------------------
     % Set Up Compass Display
     %----------------------------------------------
-    PixDims = Recon.Stitch{1}.PixDims;
+    PixDims = Recon.Stitch.PixDims;
     MSTRCT.type = 'abs';
     MSTRCT.dispwid = [0 max(abs(IMG.Im(:)))];
     MSTRCT.ImInfo.pixdim = PixDims;
@@ -30,7 +44,7 @@ function ReturnOneImageCompass(Recon)
     IMDISP = ImagingPlotSetup(INPUT);
     IMG.IMDISP = IMDISP;
     IMG.type = 'Image';
-    IMG.path = Recon.DataObj.DataPath;
+    IMG.path = Recon.DataObj{1}.DataPath;
 
 %     ind = strfind(Recon.DataObj{1}.DataName,'_');
 %     Mid = Recon.DataObj{1}.DataName(1:ind(1)-1);
@@ -41,7 +55,7 @@ function ReturnOneImageCompass(Recon)
 %         Info.VolunteerID2 = Info.VolunteerID;
 %     end
 %     IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol,'_X'];
-    IMG.name = ['IMG_',Recon.DataObj.DataName];
+    IMG.name = ['IMG_',Recon.DataObj{1}.DataName];
 
     %----------------------------------------------
     % Load Compass
