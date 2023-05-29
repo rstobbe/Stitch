@@ -63,6 +63,13 @@ classdef StitchFunctions < Grid & ReturnFov
         function StitchGridDataBlockComplexKern(obj,ReconInfoMat,DataBlock,log)           
             obj.GpuGridComplexKern(ReconInfoMat,DataBlock,log);
         end          
+
+%==================================================================
+% StitchGridDataBlockCornice
+%================================================================== 
+        function StitchGridDataBlockCornice(obj,ReconInfoMat,DataBlock,log)           
+            obj.GpuGridCornice(ReconInfoMat,DataBlock,log);
+        end           
         
 %==================================================================
 % StitchFft
@@ -70,7 +77,6 @@ classdef StitchFunctions < Grid & ReturnFov
         function StitchFft(obj,Options,log)           
             log.trace('Fourier Transform');
             Scale = Options.IntensityScale;  
-            %Scale = Scale/(obj.SubSamp^3);
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -83,7 +89,87 @@ classdef StitchFunctions < Grid & ReturnFov
                     obj.ScaleImage(GpuNum,GpuChan,Scale); 
                 end
             end
+        end  
+
+%==================================================================
+% StitchFftCornice
+%================================================================== 
+        function StitchFftCornice(obj,Options,log)           
+            log.trace('Fourier Transform');
+            Scale = Options.IntensityScale;  
+            GpuChan = 1;
+            for m = 1:obj.NumGpuUsed
+                GpuNum = m-1;
+                obj.KspaceScaleCorrect(GpuNum,GpuChan); 
+                obj.KspaceFourierTransformShift(GpuNum,GpuChan);                 
+                obj.InverseFourierTransform(GpuNum,GpuChan);
+                obj.ImageFourierTransformShift(GpuNum,GpuChan);          
+                obj.MultInvFilt(GpuNum,GpuChan);
+                obj.ScaleImage(GpuNum,GpuChan,Scale); 
+            end
         end         
+        
+%==================================================================
+% StitchFftCorniceNoInvFilt
+%================================================================== 
+        function StitchFftCorniceNoInvFilt(obj,Options,log)           
+            log.trace('Fourier Transform');
+            Scale = Options.IntensityScale;  
+            GpuChan = 1;
+            for m = 1:obj.NumGpuUsed
+                GpuNum = m-1;
+                obj.KspaceScaleCorrect(GpuNum,GpuChan); 
+                obj.KspaceFourierTransformShift(GpuNum,GpuChan);                 
+                obj.InverseFourierTransform(GpuNum,GpuChan);
+                obj.ImageFourierTransformShift(GpuNum,GpuChan);          
+                obj.ScaleImage(GpuNum,GpuChan,Scale); 
+            end
+        end                
+        
+%==================================================================
+% StitchFftNoInvFilt
+%================================================================== 
+        function StitchFftNoInvFilt(obj,Options,log)           
+            log.trace('Fourier Transform');
+            Scale = Options.IntensityScale;  
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;
+                    obj.KspaceScaleCorrect(GpuNum,GpuChan); 
+                    obj.KspaceFourierTransformShift(GpuNum,GpuChan);                 
+                    obj.InverseFourierTransform(GpuNum,GpuChan);
+                    obj.ImageFourierTransformShift(GpuNum,GpuChan);          
+                    obj.ScaleImage(GpuNum,GpuChan,Scale); 
+                end
+            end
+        end    
+
+%==================================================================
+% KspaceFourierTransformShiftAll
+%================================================================== 
+        function KspaceFourierTransformShiftAll(obj,Options,log)           
+            log.trace('Kspace Fourier Transform Shift');
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;
+                    obj.KspaceFourierTransformShift(GpuNum,GpuChan);                 
+                end
+            end
+        end              
+
+%==================================================================
+% KspaceFourierTransformShiftAllCornice
+%================================================================== 
+        function KspaceFourierTransformShiftAllCornice(obj,Options,log)           
+            log.trace('Kspace Fourier Transform Shift');
+            GpuChan = 1;
+            for m = 1:obj.NumGpuUsed
+                GpuNum = m-1;
+                obj.KspaceFourierTransformShift(GpuNum,GpuChan);                 
+            end
+        end          
         
 %==================================================================
 % StitchFftCombine
@@ -91,7 +177,6 @@ classdef StitchFunctions < Grid & ReturnFov
         function StitchFftCombine(obj,Options,log)           
             log.trace('Fourier Transform');
             Scale = Options.IntensityScale;  
-            %Scale = Scale/(obj.SubSamp^3);
             for p = 1:obj.ChanPerGpu
                 for m = 1:obj.NumGpuUsed
                     GpuNum = m-1;
@@ -272,7 +357,20 @@ classdef StitchFunctions < Grid & ReturnFov
                 obj.Image = zeros([obj.ImageReturnDims,ReconGpuBatchRxLen],Options.ImagePrecision);
             end
         end  
-              
+
+%==================================================================
+% SingleImageSetup
+%==================================================================   
+        function SingleImageSetup(obj,Options,log)
+            log.trace('Allocate CPU Memory');
+            obj.GetFinalMatrixDimensions(Options);
+            if strcmp(Options.ImageType,'complex')
+                obj.Image = complex(zeros(obj.ImageReturnDims,Options.ImagePrecision),0);
+            elseif strcmp(Options.ImageType,'abs')
+                obj.Image = zeros(obj.ImageReturnDims,Options.ImagePrecision);
+            end
+        end         
+        
 %==================================================================
 % ReturnAllImages
 %==================================================================         
@@ -292,6 +390,58 @@ classdef StitchFunctions < Grid & ReturnFov
                 end
             end
         end  
+
+%==================================================================
+% ReturnAllImagesCornice
+%==================================================================         
+        function ReturnAllImagesCornice(obj,Options,log)            
+            log.trace('Return Images from GPU');
+            for m = 1:obj.NumGpuUsed
+                GpuNum = m-1;
+                FullImage = obj.ReturnOneImageMatrixGpuMem(GpuNum,1);
+                if strcmp(Options.ImageType,'abs')
+                    FullImage = abs(FullImage);
+                end
+                FullImage = cast(FullImage,Options.ImagePrecision);
+                obj.Image(:,:,:,m) = obj.ReturnFoV(Options,FullImage);
+            end
+        end          
+        
+%==================================================================
+% ReturnAllKspace
+%==================================================================         
+        function ReturnAllKspace(obj,Options,log)            
+            log.trace('Return kSpace from GPU');
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = m-1;
+                    GpuChan = p;
+                    ChanNum = (p-1)*obj.NumGpuUsed+m;
+                    FullImage = obj.ReturnOneKspaceMatrixGpuMem(GpuNum,GpuChan);
+                    if strcmp(Options.ImageType,'abs')
+                        FullImage = abs(FullImage);
+                    end
+                    FullImage = cast(FullImage,Options.ImagePrecision);
+                    obj.Image(:,:,:,ChanNum) = obj.ReturnFoV(Options,FullImage);
+                end
+            end
+        end         
+
+%==================================================================
+% ReturnAllKspaceCornice
+%==================================================================         
+        function ReturnAllKspaceCornice(obj,Options,log)            
+            log.trace('Return Images from GPU');
+            for m = 1:obj.NumGpuUsed
+                GpuNum = m-1;
+                FullImage = obj.ReturnOneKspaceMatrixGpuMem(GpuNum,1);
+                if strcmp(Options.ImageType,'abs')
+                    FullImage = abs(FullImage);
+                end
+                FullImage = cast(FullImage,Options.ImagePrecision);
+                obj.Image(:,:,:,m) = obj.ReturnFoV(Options,FullImage);
+            end
+        end         
         
 %==================================================================
 % StitchFreeGpuMemory
@@ -301,6 +451,15 @@ classdef StitchFunctions < Grid & ReturnFov
             obj.ReleaseGriddingGpuMem;
             obj.ReleaseSuperGpuMem;
         end   
+        
+%==================================================================
+% StitchFreeGpuMemoryCornice
+%==================================================================           
+        function StitchFreeGpuMemoryCornice(obj,log) 
+            log.trace('Free GPU Memory');
+            obj.ReleaseGriddingCorniceGpuMem;
+            obj.ReleaseSuperGpuMem;
+        end           
 
 %==================================================================
 % ReleaseSuperGpuMem

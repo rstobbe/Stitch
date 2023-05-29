@@ -1,11 +1,10 @@
 %================================================================
-% StitchStandardComplexKern1a
-%   - Standard gridding reconstruction
-%   - 'AcqInfo' comes from local computer
-%   - All images reconstructed with same 'Options'
+% StitchCestHack1a
+%   - From StitchStandard1a
+%   - Hack for multiple sequential images
 %================================================================
 
-classdef StitchStandardComplexKern1a < handle
+classdef StitchCestHack1a < handle
 
     properties (SetAccess = private)                                     
         Stitch
@@ -20,6 +19,7 @@ classdef StitchStandardComplexKern1a < handle
         ReconRxBatches
         ReconRxBatchLen
         Image
+        Kspace
     end
     
     methods 
@@ -27,7 +27,7 @@ classdef StitchStandardComplexKern1a < handle
 %==================================================================
 % Constructor
 %==================================================================   
-        function [obj] = StitchStandardComplexKern1a(Options)
+        function [obj] = StitchCestHack1a(Options)
             obj.Options = Options;
             obj.Log = Log('');
         end                
@@ -83,21 +83,18 @@ classdef StitchStandardComplexKern1a < handle
             end 
             obj.RxChannels = obj.DataObj.RxChannels;
             obj.NumTrajs = obj.AcqInfo{1}.NumTraj;
-            obj.NumImageAverages = obj.DataObj.NumAverages;
+            %====== CestHack ======
+            %obj.NumImageAverages = obj.DataObj.NumAverages;
+            obj.NumImageAverages = obj.DataObj.TotalAcqs/obj.AcqInfo{1}.NumTraj;
+            obj.DataObj.SetAcqsPerImage(obj.AcqInfo{1}.NumTraj);
+            %=====================
             if obj.RxChannels == 1          
                 obj.Options.SetGpus2Use(1);
                 obj.Options.SetCoilCombine('Single');
             end
             for AcqNum = 1:obj.NumAcqsPerReadout         
                 obj.Stitch{AcqNum} = StitchFunctions();
-                %obj.Stitch{AcqNum}.Initialize(obj.Options,obj.Log);
-                %--
-                obj.Stitch{AcqNum}.StitchFreeGpuMemory(obj.Log);
-                obj.Stitch{AcqNum}.GpuInit(obj.Options.Gpus2Use);
-                obj.Stitch{AcqNum}.GridComplexKernelLoad(obj.Options,obj.Log);
-                obj.Stitch{AcqNum}.InvFiltLoad(obj.Options,obj.Log);
-                obj.Stitch{AcqNum}.FftInitialize(obj.Options,obj.Log);
-                %--
+                obj.Stitch{AcqNum}.Initialize(obj.Options,obj.Log);
             end
             obj.InitializeReconRxBatching;
             for AcqNum = 1:obj.NumAcqsPerReadout         
@@ -137,7 +134,7 @@ classdef StitchStandardComplexKern1a < handle
                 MemoryNeededImages = ChanPerGpu*ImageMemory*obj.NumAcqsPerReadout; 
                 MemoryNeededData = ChanPerGpu*DataMemory;  
                 MemoryNeededTotal = MemoryNeededImages + MemoryNeededData;
-                if MemoryNeededTotal*1.1 < AvailableMemory
+                if MemoryNeededTotal*1.2 < AvailableMemory
                     break
                 end
             end
@@ -221,7 +218,11 @@ classdef StitchStandardComplexKern1a < handle
                                 ReconInfoBlock = obj.AcqInfo{AcqNum}.ReconInfoMat(:,Trajs,:);
                             end
                             obj.DataObj.ReadDataBlock(Trajs,Rcvrs,AveNum,AcqNum,obj.AcqInfo{AcqNum},obj.Log);
-                            obj.Stitch{AcqNum}.StitchGridDataBlockComplexKern(ReconInfoBlock,obj.DataObj.DataBlock,obj.Log);
+                            if obj.Options.DoPsf
+                                DataBlock0 = ones(size(obj.DataObj.DataBlock),'single');
+                                obj.DataObj.SetDataBlock(DataBlock0); 
+                            end
+                            obj.Stitch{AcqNum}.StitchGridDataBlock(ReconInfoBlock,obj.DataObj.DataBlock,obj.Log);
                         end
                     end
                     for AcqNum = 1:obj.NumAcqsPerReadout
@@ -229,6 +230,19 @@ classdef StitchStandardComplexKern1a < handle
                         if strcmp(obj.Options.CoilCombine,'ReturnAll') || strcmp(obj.Options.CoilCombine,'Single')
                             obj.Stitch{AcqNum}.ReturnAllImages(obj.Options,obj.Log);
                             obj.Image(:,:,:,Rcvrs,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image;
+                            if obj.Options.ReturnKspace
+                                obj.Stitch{AcqNum}.KspaceFourierTransformShiftAll(obj.Options,obj.Log);
+                                obj.Stitch{AcqNum}.ReturnAllKspace(obj.Options,obj.Log);
+                                obj.Kspace(:,:,:,Rcvrs,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image; 
+                            end
+                        elseif strcmp(obj.Options.CoilCombine,'Sum')
+                            obj.Stitch{AcqNum}.ReturnAllImages(obj.Options,obj.Log);
+                            obj.Image(:,:,:,1,AcqNum,AveNum) = sum(obj.Stitch{AcqNum}.Image,4);
+                            if obj.Options.ReturnKspace
+                                obj.Stitch{AcqNum}.KspaceFourierTransformShiftAll(obj.Options,obj.Log);
+                                obj.Stitch{AcqNum}.ReturnAllKspace(obj.Options,obj.Log);
+                                obj.Kspace(:,:,:,1,AcqNum,AveNum) = sum(obj.Stitch{AcqNum}.Image,4); 
+                            end
                         elseif strcmp(obj.Options.CoilCombine,'Super')
                             obj.Stitch{AcqNum}.SuperCombinePartial(obj.Log);
                         end
@@ -236,8 +250,8 @@ classdef StitchStandardComplexKern1a < handle
                 end
                 for AcqNum = 1:obj.NumAcqsPerReadout
                     if strcmp(obj.Options.CoilCombine,'Super')
-                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Log);
-                        obj.Stitch{AcqNum}.BuildImageArray(1,AcqNum,AveNum);
+                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Options,obj.Log);
+                        obj.Image(:,:,:,1,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image;
                     end 
                 end
             end
@@ -251,11 +265,25 @@ classdef StitchStandardComplexKern1a < handle
         end
 
 %==================================================================
+% ReturnKspaceCompass
+%==================================================================         
+        function ReturnKspaceCompass(obj)
+            ReturnOneKspaceCompass(obj);
+        end          
+        
+%==================================================================
 % ReturnIMG
 %==================================================================         
         function IMG = ReturnIMG(obj)
             IMG = ReturnOneImage(obj);
         end        
+
+%==================================================================
+% SetKspace
+%==================================================================         
+        function SetKspace(obj,Kspace)
+            obj.Kspace = Kspace;
+        end         
         
 %==================================================================
 % Finish

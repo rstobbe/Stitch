@@ -1,11 +1,11 @@
 %==================================================================
-% CompassImageCompass
+% ReturnOneKspaceCompass
 %================================================================== 
 
-function ReturnOneImageCompass(Recon,Name)
+function ReturnOneKspaceCompass(Recon,Name)
 
     IMG.Method = class(Recon);
-    IMG.Im = Recon.Image;  
+    IMG.Im = Recon.Kspace;  
     Info = Recon.DataObj.DataInfo;           % Base on first
     IMG.ExpPars = Info.ExpPars;
 
@@ -18,11 +18,10 @@ function ReturnOneImageCompass(Recon,Name)
     %----------------------------------------------
     % Set Up Compass Display
     %----------------------------------------------
-    PixDims = Recon.Stitch{1}.PixDims;
     MSTRCT.type = 'abs';
     MSTRCT.dispwid = [0 max(abs(IMG.Im(:)))];
-    MSTRCT.ImInfo.pixdim = PixDims;
-    MSTRCT.ImInfo.vox = PixDims(1)*PixDims(2)*PixDims(3);
+    MSTRCT.ImInfo.pixdim = [1 1 1];
+    MSTRCT.ImInfo.vox = 1;
     MSTRCT.ImInfo.info = IMG.ExpDisp;
     MSTRCT.ImInfo.baseorient = 'Axial';             % all images should be oriented axially
     INPUT.Image = IMG.Im;
@@ -42,9 +41,9 @@ function ReturnOneImageCompass(Recon,Name)
 %     end
 %     IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol,'_X'];
     if nargin == 1
-        IMG.name = ['IMG_',Recon.DataObj.DataName];
+        IMG.name = ['KSP_',Recon.DataObj.DataName];
     elseif nargin == 2
-        IMG.name = ['IMG_',Name];
+        IMG.name = ['KSP_',Name];
     end
 
     %----------------------------------------------

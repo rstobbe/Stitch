@@ -1,8 +1,8 @@
 %==================================================================
-% CompassImageCompass
+% 
 %================================================================== 
 
-function ReturnOneImageCompass(Recon,Name)
+function SaveOneSiemensImageCompass(Recon,path,Suffix)
 
     IMG.Method = class(Recon);
     IMG.Im = Recon.Image;  
@@ -32,6 +32,18 @@ function ReturnOneImageCompass(Recon,Name)
     IMG.type = 'Image';
     IMG.path = Recon.DataObj.DataPath;
 
+    %----------------------------------------------
+    % Other
+    %----------------------------------------------
+    if isprop(Recon,'TrajMashInfo')
+        IMG.TrajMashInfo = Recon.TrajMashInfo;
+    end
+    saveData.IMG = IMG;
+    save([path,IMG.name],'saveData');    
+    
+    %----------------------------------------------
+    % Name
+    %----------------------------------------------    
 %     ind = strfind(Recon.DataObj{1}.DataName,'_');
 %     Mid = Recon.DataObj{1}.DataName(1:ind(1)-1);
 %     ind = strfind(Info.VolunteerID,'.');
@@ -41,18 +53,14 @@ function ReturnOneImageCompass(Recon,Name)
 %         Info.VolunteerID2 = Info.VolunteerID;
 %     end
 %     IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol,'_X'];
-    if nargin == 1
-        IMG.name = ['IMG_',Recon.DataObj.DataName];
-    elseif nargin == 2
-        IMG.name = ['IMG_',Name];
-    end
+%     IMG.name = ['IMG_',Recon.DataObj.DataName];
+    ind = strfind(Recon.DataObj{1}.DataFile,'_');
+    IMG.name = ['IMG_',Recon.DataObj{1}.DataFile(1:ind(2)-1),'_',Info.Protocol(2:end),Suffix];
 
     %----------------------------------------------
-    % Load Compass
+    % Save
     %----------------------------------------------
-    totalgbl{1} = IMG.name;
-    totalgbl{2} = IMG;
-    from = 'CompassLoad';
-    Load_TOTALGBL(totalgbl,'IM',from);
+    saveData.IMG = IMG;
+    save([path,IMG.name],'saveData');
 end
 

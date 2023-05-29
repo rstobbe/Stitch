@@ -72,7 +72,10 @@ if isempty(GoodSeqTest)
     error('A valid sequence was not found');
 end
 if length(GoodSeqTest) > 1
-    error('This .dat file contains two yarnball sequences');
+    %--------
+    %error('This .dat file contains two yarnball sequences');
+    GoodSeqTest = 2;                                                % hack
+    %--------
 end
 GoodSeq = GoodSeqTest;
 Hdr = HdrArr{GoodSeq};
@@ -82,6 +85,10 @@ Config = ConfigArr{GoodSeq};
 % Read First Mdh
 %-----------------------------------------------------
 fseek(fid,DataPos(GoodSeq),'bof');
+%=====================================================
+[~,filePos,~] = loop_mdh_read(fid,'vd');                % Accomodate possible inclusion of SyncData - 230428
+fseek(fid,filePos(1),'bof');
+%=====================================================
 MdhTemp = fread(fid,byteMdh,'uint8=>uint8');
 MdhTemp = MdhTemp([1:20 41:end],:);     
 Mdh = EvalMdh(MdhTemp);
@@ -106,10 +113,14 @@ Dims.Ide        = sLC(:,14).';
 % Determine Memory Positions
 %-----------------------------------------------------
 DataSegLength = szScanHeader + (8*Dims.NCol + szChannelHeader) * Dims.NCha;
-fseek(fid,0,'eof');
-filesize = ftell(fid);
-Dims.Lin = floor((filesize - cPos)/DataSegLength);
-Mem.Pos = (cPos:DataSegLength:filesize-DataSegLength);
+%=====================================================
+% fseek(fid,0,'eof');
+% filesize = ftell(fid);
+% Dims.Lin = floor((filesize - cPos)/DataSegLength);
+% Mem.Pos = (cPos:DataSegLength:filesize-DataSegLength);
+Dims.Lin = length(filePos)-1;                           % Accomodate possible inclusion of SyncData - 230428
+Mem.Pos = filePos(1:end-1);
+%=====================================================
 Mem.DataSegLength = DataSegLength;
 fclose(fid);
 
@@ -156,8 +167,7 @@ Info.PanelOutput = PanelOutput;
 Info.Seq = Seq;
 Info.Protocol = Protocol;
 Info.VolunteerID = VolunteerID;
-Info.TrajName = ExpPars.TrajName;
-Info.TrajImpName = ExpPars.TrajImpName;
+Info.TrajName = ExpPars.TrajName;    
 Info.RxChannels = Dims.NCha;
 
 DATA.DataHdr = Hdr;

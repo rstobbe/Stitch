@@ -2,7 +2,7 @@
 % 
 %==================================================================
 
-classdef StitchStandardFullKern1aOptions < handle
+classdef StitchCestHack1aOptions < handle
 
 properties (SetAccess = private)                   
     StitchSupportingPath
@@ -12,8 +12,8 @@ properties (SetAccess = private)
     InvFiltFile
     InvFilt
     ZeroFill
-    Fov2Return = 'Design'          % {'All','Design',Values}
-    CoilCombine = 'Super';          % {'Super','ReturnAll','Single};
+    Fov2Return = 'All'          % {'All','Design',Values}
+    CoilCombine = 'ReturnAll';          % {'Super','ReturnAll','Single};
     SuperProfRes = 10
     SuperProfFilt = 12
     Gpus2Use
@@ -26,6 +26,8 @@ properties (SetAccess = private)
     SubSampMatrix
     Fov
     SubSampFov
+    ReturnKspace = 0
+    DoPsf = 0
     IntensityScale = 'Default'      
 end
 
@@ -34,8 +36,22 @@ methods
 %==================================================================
 % Constructor
 %==================================================================  
-function obj = StitchStandardFullKern1aOptions             
+function obj = StitchCestHack1aOptions             
 end
+
+%==================================================================
+% SetDoPsf
+%==================================================================         
+        function SetDoPsf(obj,val)
+            obj.DoPsf = val;
+        end
+
+%==================================================================
+% SetReturnKspace
+%==================================================================         
+        function SetReturnKspace(obj,val)
+            obj.ReturnKspace = val;
+        end
 
 %==================================================================
 % SetStitchSupportingPath
@@ -171,7 +187,7 @@ end
                 obj.ZeroFill = PossibleZeroFill(ind);
             end
             if obj.ZeroFill < obj.SubSampMatrix
-                error('Specified ZeroFill is too small');
+                error(['Specified ZeroFill is too small. Min: ',num2str(round(obj.SubSampMatrix))]);
             end
             if isempty(obj.InvFiltFile)
                 obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];

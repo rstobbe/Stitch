@@ -2,7 +2,7 @@
 % CompassImageCompass
 %================================================================== 
 
-function ReturnOneImageCompass(Recon,Name)
+function SaveOneImageCompass(Recon)
 
     IMG.Method = class(Recon);
     IMG.Im = Recon.Image;  
@@ -41,11 +41,7 @@ function ReturnOneImageCompass(Recon,Name)
 %         Info.VolunteerID2 = Info.VolunteerID;
 %     end
 %     IMG.name = ['IMG_',Info.VolunteerID2,'_',Mid,'_',Info.Protocol,'_X'];
-    if nargin == 1
-        IMG.name = ['IMG_',Recon.DataObj.DataName];
-    elseif nargin == 2
-        IMG.name = ['IMG_',Name];
-    end
+    IMG.name = ['IMG_',Recon.DataObj.DataName];
 
     %----------------------------------------------
     % Load Compass

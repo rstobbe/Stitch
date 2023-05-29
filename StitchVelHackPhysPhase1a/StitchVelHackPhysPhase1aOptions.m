@@ -2,7 +2,7 @@
 % 
 %==================================================================
 
-classdef StitchFtPhase1aOptions < handle
+classdef StitchVelHackPhysPhase1aOptions < handle
 
 properties (SetAccess = private)                   
     StitchSupportingPath
@@ -12,8 +12,8 @@ properties (SetAccess = private)
     InvFiltFile
     InvFilt
     ZeroFill
-    Fov2Return = 'Design'          % {'All','Design',Values}
-    CoilCombine = 'Super';          % {'Super','ReturnAll','Single};
+    Fov2Return = 'All'          % {'All','Design',Values}
+    CoilCombine = 'ReturnAll';          % {'Super','ReturnAll','Single};
     SuperProfRes = 10
     SuperProfFilt = 12
     Gpus2Use
@@ -26,6 +26,8 @@ properties (SetAccess = private)
     SubSampMatrix
     Fov
     SubSampFov
+    ReturnKspace = 0
+    DoPsf = 0
     IntensityScale = 'Default'      
 end
 
@@ -34,8 +36,22 @@ methods
 %==================================================================
 % Constructor
 %==================================================================  
-function obj = StitchFtPhase1aOptions             
+function obj = StitchVelHackPhysPhase1aOptions             
 end
+
+%==================================================================
+% SetDoPsf
+%==================================================================         
+        function SetDoPsf(obj,val)
+            obj.DoPsf = val;
+        end
+
+%==================================================================
+% SetReturnKspace
+%==================================================================         
+        function SetReturnKspace(obj,val)
+            obj.ReturnKspace = val;
+        end
 
 %==================================================================
 % SetStitchSupportingPath
@@ -78,11 +94,30 @@ end
         function SetKernelFile(obj,val)
             obj.KernelFile = val;
         end          
+
+%==================================================================
+% SetInvFiltFile
+%==================================================================   
+        function SetInvFiltFile(obj,val)
+            obj.InvFiltFile = val;
+            load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
+            obj.InvFilt = saveData.IFprms;
+            obj.ZeroFill = obj.InvFilt.ZF;
+        end           
+
+%==================================================================
+% SetDummyInvFilt
+%==================================================================   
+        function SetDummyInvFilt(obj)         
+            obj.InvFilt.V = ones([obj.ZeroFill,obj.ZeroFill,obj.ZeroFill],'single');
+            obj.InvFiltFile = 'Dummy';
+        end         
         
 %==================================================================
 % SetZeroFill
 %==================================================================   
         function SetZeroFill(obj,val)
+            obj.InvFiltFile = [];
             obj.ZeroFill = val;
         end           
 
@@ -152,11 +187,13 @@ end
                 obj.ZeroFill = PossibleZeroFill(ind);
             end
             if obj.ZeroFill < obj.SubSampMatrix
-                error('Specified ZeroFill is too small');
+                error(['Specified ZeroFill is too small. Min: ',num2str(round(obj.SubSampMatrix))]);
             end
-            obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];   
-            load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
-            obj.InvFilt = saveData.IFprms;
+            if isempty(obj.InvFiltFile)
+                obj.InvFiltFile = [obj.KernelFile,'zf',num2str(obj.ZeroFill),'S'];
+                load([obj.StitchSupportingPath,'InverseFilters',filesep,'IF_',obj.InvFiltFile,'.mat']);              
+                obj.InvFilt = saveData.IFprms;
+            end
             
             %------------------------------------------------------
             % Test Gpus

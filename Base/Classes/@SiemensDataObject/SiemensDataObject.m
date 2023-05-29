@@ -59,6 +59,13 @@ classdef SiemensDataObject < handle
         end  
 
 %==================================================================
+% SetAcqsPerImage
+%==================================================================          
+        function SetAcqsPerImage(obj,Val)
+            obj.AcqsPerImage = Val;
+        end
+
+%==================================================================
 % ReadSiemensHeader
 %==================================================================   
         function ReadSiemensHeader(obj)
@@ -112,6 +119,22 @@ classdef SiemensDataObject < handle
                 end
             end
         end
+
+%==================================================================
+% SetDataBlock
+%==================================================================             
+        function SetDataBlock(obj,DataBlock0)
+            obj.DataBlock = DataBlock0;
+        end 
+
+%==================================================================
+% SetDataDims (For Hacking)
+%==================================================================         
+        function SetDataDims(obj,NCol,NCha,Lin)
+            obj.DataDims.NCol = NCol;
+            obj.DataDims.NCha = NCha;
+            obj.DataDims.Lin = Lin;
+        end 
 
 %==================================================================
 % ZeroData

@@ -20,6 +20,7 @@ classdef StitchStandard1a < handle
         ReconRxBatches
         ReconRxBatchLen
         Image
+        Kspace
     end
     
     methods 
@@ -130,7 +131,7 @@ classdef StitchStandard1a < handle
                 MemoryNeededImages = ChanPerGpu*ImageMemory*obj.NumAcqsPerReadout; 
                 MemoryNeededData = ChanPerGpu*DataMemory;  
                 MemoryNeededTotal = MemoryNeededImages + MemoryNeededData;
-                if MemoryNeededTotal*1.1 < AvailableMemory
+                if MemoryNeededTotal*1.2 < AvailableMemory
                     break
                 end
             end
@@ -214,6 +215,10 @@ classdef StitchStandard1a < handle
                                 ReconInfoBlock = obj.AcqInfo{AcqNum}.ReconInfoMat(:,Trajs,:);
                             end
                             obj.DataObj.ReadDataBlock(Trajs,Rcvrs,AveNum,AcqNum,obj.AcqInfo{AcqNum},obj.Log);
+                            if obj.Options.DoPsf
+                                DataBlock0 = ones(size(obj.DataObj.DataBlock),'single');
+                                obj.DataObj.SetDataBlock(DataBlock0); 
+                            end
                             obj.Stitch{AcqNum}.StitchGridDataBlock(ReconInfoBlock,obj.DataObj.DataBlock,obj.Log);
                         end
                     end
@@ -222,6 +227,19 @@ classdef StitchStandard1a < handle
                         if strcmp(obj.Options.CoilCombine,'ReturnAll') || strcmp(obj.Options.CoilCombine,'Single')
                             obj.Stitch{AcqNum}.ReturnAllImages(obj.Options,obj.Log);
                             obj.Image(:,:,:,Rcvrs,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image;
+                            if obj.Options.ReturnKspace
+                                obj.Stitch{AcqNum}.KspaceFourierTransformShiftAll(obj.Options,obj.Log);
+                                obj.Stitch{AcqNum}.ReturnAllKspace(obj.Options,obj.Log);
+                                obj.Kspace(:,:,:,Rcvrs,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image; 
+                            end
+                        elseif strcmp(obj.Options.CoilCombine,'Sum')
+                            obj.Stitch{AcqNum}.ReturnAllImages(obj.Options,obj.Log);
+                            obj.Image(:,:,:,1,AcqNum,AveNum) = sum(obj.Stitch{AcqNum}.Image,4);
+                            if obj.Options.ReturnKspace
+                                obj.Stitch{AcqNum}.KspaceFourierTransformShiftAll(obj.Options,obj.Log);
+                                obj.Stitch{AcqNum}.ReturnAllKspace(obj.Options,obj.Log);
+                                obj.Kspace(:,:,:,1,AcqNum,AveNum) = sum(obj.Stitch{AcqNum}.Image,4); 
+                            end
                         elseif strcmp(obj.Options.CoilCombine,'Super')
                             obj.Stitch{AcqNum}.SuperCombinePartial(obj.Log);
                         end
@@ -229,8 +247,8 @@ classdef StitchStandard1a < handle
                 end
                 for AcqNum = 1:obj.NumAcqsPerReadout
                     if strcmp(obj.Options.CoilCombine,'Super')
-                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Log);
-                        obj.Stitch{AcqNum}.BuildImageArray(1,AcqNum,AveNum);
+                        obj.Stitch{AcqNum}.SuperCombineFinish(obj.Options,obj.Log);
+                        obj.Image(:,:,:,1,AcqNum,AveNum) = obj.Stitch{AcqNum}.Image;
                     end 
                 end
             end
@@ -244,11 +262,25 @@ classdef StitchStandard1a < handle
         end
 
 %==================================================================
+% ReturnKspaceCompass
+%==================================================================         
+        function ReturnKspaceCompass(obj)
+            ReturnOneKspaceCompass(obj);
+        end          
+        
+%==================================================================
 % ReturnIMG
 %==================================================================         
         function IMG = ReturnIMG(obj)
             IMG = ReturnOneImage(obj);
         end        
+
+%==================================================================
+% SetKspace
+%==================================================================         
+        function SetKspace(obj,Kspace)
+            obj.Kspace = Kspace;
+        end         
         
 %==================================================================
 % Finish

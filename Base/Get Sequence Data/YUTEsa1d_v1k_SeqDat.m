@@ -7,7 +7,7 @@ function [ExpPars,PanelOutput,err] = YUTEsa1d_v1k_SeqDat(MrProt,DataInfo)
 err.flag = 0;
 err.msg = '';
 
-% Status2('busy','Load ''YUTEsa2'' Sequence Info',2);
+% Status2('busy','Load ''YUTEsa1d'' Sequence Info',2);
 
 %---------------------------------------------
 % Read Trajectory

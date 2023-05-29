@@ -8,6 +8,7 @@ classdef GpuInterface < handle
         HPhaseImage;
         HKspaceMatrix;
         HImageMatrix; ImageMatrixMemDims;
+        HImageRetFovMatrix; ImageRetFovMatrixMemDims; 
         HTempMatrix;
         HFourierTransformPlan;
         HInvFilt;
@@ -71,6 +72,9 @@ classdef GpuInterface < handle
             if ~isa(Kernel,'single')
                 error('Kernel must be in single format');
             end
+            if ~isreal(Kernel)
+                error('Kernel must be real');
+            end  
             obj.ConvScaleVal = ConvScaleVal;
             obj.iKern = uint64(iKern);
             obj.KernHw = uint64(KernHw);
@@ -91,6 +95,9 @@ classdef GpuInterface < handle
             if ~isa(Kernel,'single')
                 error('Kernel must be in single format');
             end
+            if isreal(Kernel)
+                error('Kernel must be complex');
+            end            
             obj.ConvScaleVal = ConvScaleVal;
             obj.iKern = uint64(iKern);
             obj.KernHw = uint64(KernHw);
@@ -103,6 +110,89 @@ classdef GpuInterface < handle
             end
         end        
 
+%==================================================================
+% LoadCorniceKernelGpuMem
+%   - All GPUs
+%================================================================== 
+        function LoadCorniceKernelGpuMem(obj,Kernel,iKern,KernHw,ConvScaleVal)
+            if ~isa(Kernel,'single')
+                error('Kernel must be in single format');
+            end
+            if isreal(Kernel)
+                error('Kernel must be complex');
+            end            
+            obj.ConvScaleVal = ConvScaleVal;
+            obj.iKern = uint64(iKern);
+            obj.KernHw = uint64(KernHw);
+            sz = size(Kernel);
+            obj.KernelMemDims = uint64(sz(1:3));
+            func = str2func(['AllocateLoadComplexMatrixSingleGpuMem',obj.CompCap]);
+            obj.HKernel = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = uint64(m-1);
+                    ChanNum = (p-1)*obj.NumGpuUsed+m;
+                    if ChanNum > sz(4)
+                        error;
+                    end
+                    [obj.HKernel(p,m),Error] = func(GpuNum,complex(Kernel(:,:,:,ChanNum)));    
+                    %[obj.HKernel(p,m),Error] = func(GpuNum,Kernel(:,:,:,ChanNum));                   
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                end
+            end
+        end          
+
+%==================================================================
+% AllocateLoadComplexImages
+%================================================================== 
+        function AllocateLoadComplexImages(obj,Image)
+            if ~isa(Image,'single')
+                error('Image must be in single format');
+            end
+            if isreal(Image)
+                error('Image must be complex');
+            end            
+            sz = size(Image);
+            obj.ImageMatrixMemDims = uint64(sz(1:3));
+            func = str2func(['AllocateLoadComplexMatrixSingleGpuMem',obj.CompCap]);
+            obj.HImageMatrix = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
+            for p = 1:obj.ChanPerGpu
+                for m = 1:obj.NumGpuUsed
+                    GpuNum = uint64(m-1);
+                    ChanNum = (p-1)*obj.NumGpuUsed+m;
+                    if ChanNum > sz(4)
+                        error('Image array greater than number of channels specified');
+                    end
+                    [obj.HImageMatrix(p,m),Error] = func(GpuNum,Image(:,:,:,ChanNum));                  
+                    if not(strcmp(Error,'no error'))
+                        error(Error);
+                    end
+                end
+            end
+        end          
+
+%==================================================================
+% AllocateInitializeRetFovImages
+%   - input = array of 3 dimension sizes
+%==================================================================                      
+        function AllocateInitializeRetFovImages(obj,ImageRetFovMatrixMemDims)
+            obj.ImageRetFovMatrixMemDims = uint64(ImageRetFovMatrixMemDims);
+            obj.HImageRetFovMatrix = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
+            func = str2func(['AllocateInitializeComplexMatrixAllGpuMem',obj.CompCap]);
+            for n = 1:obj.ChanPerGpu
+                [obj.HImageRetFovMatrix(n,:),Error] = func(obj.NumGpuUsed,obj.ImageRetFovMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    MaxChanPerGpu = n
+                    error(Error);
+                end
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+        
 %==================================================================
 % AllocateStaticPhaseImageGpuMem
 %   - Diffusion context
@@ -124,15 +214,15 @@ classdef GpuInterface < handle
 %   - Load a StatcPhaseImage for each trajectory
 %================================================================== 
         function LoadComplexPhaseImageGpuMem(obj,PhaseImage)
-            sz = size(PhaseImage);
-            if sz(1) ~= obj.KernelMemDims
-                error('Phase image must be same dimensions as Kernel');
-            end
-            func = str2func(['LoadComplexMatrixAllGpuMem',obj.CompCap]);
-            [Error] = func(...stuff... PhaseImage);
-            if not(strcmp(Error,'no error'))
-                error(Error);
-            end
+%             sz = size(PhaseImage);
+%             if sz(1) ~= obj.KernelMemDims
+%                 error('Phase image must be same dimensions as Kernel');
+%             end
+%             func = str2func(['LoadComplexMatrixAllGpuMem',obj.CompCap]);
+%             [Error] = func(...stuff... PhaseImage);
+%             if not(strcmp(Error,'no error'))
+%                 error(Error);
+%             end
         end         
         
 %==================================================================
@@ -345,8 +435,8 @@ classdef GpuInterface < handle
 %==================================================================                      
         function AllocateKspaceImageMatricesGpuMem(obj,ImageMatrixMemDims)
             obj.ImageMatrixMemDims = uint64(ImageMatrixMemDims);
-            obj.HKspaceMatrix = zeros([obj.NumGpuUsed,obj.NumGpuUsed],'uint64');
-            obj.HImageMatrix = zeros([obj.NumGpuUsed,obj.NumGpuUsed],'uint64');
+            obj.HKspaceMatrix = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
+            obj.HImageMatrix = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
             func = str2func(['AllocateInitializeComplexMatrixAllGpuMem',obj.CompCap]);
             for n = 1:obj.ChanPerGpu
                 [obj.HImageMatrix(n,:),Error] = func(obj.NumGpuUsed,obj.ImageMatrixMemDims);
@@ -366,6 +456,44 @@ classdef GpuInterface < handle
             end
         end          
 
+%==================================================================
+% AllocateKspaceMatricesGpuMem
+%   - input = array of 3 dimension sizes
+%==================================================================                      
+        function AllocateKspaceMatricesGpuMem(obj,ImageMatrixMemDims)
+            obj.ImageMatrixMemDims = uint64(ImageMatrixMemDims);
+            obj.HKspaceMatrix = zeros([obj.ChanPerGpu,obj.NumGpuUsed],'uint64');
+            func = str2func(['AllocateInitializeComplexMatrixAllGpuMem',obj.CompCap]);
+            for n = 1:obj.ChanPerGpu
+                [obj.HKspaceMatrix(n,:),Error] = func(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+                if not(strcmp(Error,'no error'))
+                    MaxChanPerGpu = n
+                    error(Error);
+                end
+            end
+        end          
+        
+%==================================================================
+% AllocateKspaceImageMatricesCorniceGpuMem
+%   - input = array of 3 dimension sizes
+%==================================================================                      
+        function AllocateKspaceImageMatricesCorniceGpuMem(obj,ImageMatrixMemDims)
+            obj.ImageMatrixMemDims = uint64(ImageMatrixMemDims);
+            func = str2func(['AllocateInitializeComplexMatrixAllGpuMem',obj.CompCap]);
+            [obj.HImageMatrix,Error] = func(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            [obj.HKspaceMatrix,Error] = func(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            [obj.HTempMatrix,Error] = func(obj.NumGpuUsed,obj.ImageMatrixMemDims);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end             
+        
 %==================================================================
 % InitializeKspaceMatricesGpuMem
 %==================================================================                      
@@ -402,8 +530,47 @@ classdef GpuInterface < handle
             obj.HImageMatrix = [];
             obj.HKspaceMatrix = [];
             obj.HTempMatrix = [];
-        end         
+        end    
+        
+%==================================================================
+% FreeKspaceImageMatricesCorniceGpuMem
+%==================================================================                      
+        function FreeKspaceImageMatricesCorniceGpuMem(obj)
+            func = str2func(['FreeAllGpuMem',obj.CompCap]);
+            [Error] = func(obj.NumGpuUsed,obj.HImageMatrix);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            [Error] = func(obj.NumGpuUsed,obj.HKspaceMatrix);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            [Error] = func(obj.NumGpuUsed,obj.HTempMatrix);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            obj.HImageMatrix = [];
+            obj.HKspaceMatrix = [];
+            obj.HTempMatrix = [];
+        end           
 
+%==================================================================
+% FreeImageMatricesGpuMem
+%==================================================================                      
+        function FreeImageMatricesGpuMem(obj)
+            func = str2func(['FreeAllGpuMem',obj.CompCap]);
+            for n = 1:obj.ChanPerGpu
+                [Error] = func(obj.NumGpuUsed,obj.HImageMatrix(n,:));
+                if not(strcmp(Error,'no error'))
+                    error(Error);
+                end
+            end
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+            obj.HImageMatrix = [];
+        end          
+        
 %==================================================================
 % AllocateSuperMatricesGpuMem
 %   - inpute = array of 3 dimension sizes
@@ -502,6 +669,26 @@ classdef GpuInterface < handle
                 error(Error);
             end
         end         
+
+%==================================================================
+% GridSampDatCornice
+%==================================================================                      
+        function GridSampDatCornice(obj,GpuNum,GpuChanNum)
+            if GpuNum > obj.NumGpuUsed-1
+                error('Specified ''LoadGpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            func = str2func(['GridSampDatComplexKern',obj.CompCap]);
+%------------------------  Separate Images ---------         
+%             [Error] = func(GpuNum,obj.HSampDat(GpuChanNum,:),obj.HReconInfo,obj.HKernel(GpuChanNum,:),obj.HKspaceMatrix(GpuChanNum,:),...
+%                                     obj.SampDatMemDims,obj.KernelMemDims,obj.ImageMatrixMemDims,obj.iKern,obj.KernHw);
+%---------------------------------------------------   
+            [Error] = func(GpuNum,obj.HSampDat(GpuChanNum,:),obj.HReconInfo,obj.HKernel(GpuChanNum,:),obj.HKspaceMatrix(1,:),...
+                                    obj.SampDatMemDims,obj.KernelMemDims,obj.ImageMatrixMemDims,obj.iKern,obj.KernHw);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
         
 %==================================================================
 % ReturnOneKspaceMatrixGpuMem
@@ -533,6 +720,21 @@ classdef GpuInterface < handle
             end
         end 
 
+%==================================================================
+% ReturnOneImageRetFovMatrixGpuMem
+%================================================================== 
+        function ImageRetFovMatrix = ReturnOneImageRetFovMatrixGpuMem(obj,GpuNum,GpuChanNum)
+            if GpuNum > obj.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            GpuNum = uint64(GpuNum);
+            func = str2func(['ReturnComplexMatrixSingleGpu',obj.CompCap]);
+            [ImageRetFovMatrix,Error] = func(GpuNum,obj.HImageRetFovMatrix(GpuChanNum,:),obj.ImageRetFovMatrixMemDims);
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end         
+        
 %==================================================================
 % ReturnOneRealMatrixGpuMemSpecify
 %================================================================== 
@@ -791,6 +993,22 @@ classdef GpuInterface < handle
             GpuNum = uint64(GpuNum);
             func = str2func(['MultiplyAccumComplexMatrixComplexMatrixSingleGpu',obj.CompCap]);
             [Error] = func(GpuNum,obj.HSuperHighSoS,obj.HImageMatrix(GpuChanNum,:),obj.HSuperLowConj,obj.ImageMatrixMemDims);  
+            if not(strcmp(Error,'no error'))
+                error(Error);
+            end
+        end          
+
+%==================================================================
+% ReturnFov
+%==================================================================         
+        function ReturnFov(obj,GpuNum,GpuChanNum)
+            if GpuNum > obj.NumGpuUsed-1
+                error('Specified ''GpuNum'' beyond number of GPUs used');
+            end
+            Inset = uint64((obj.ImageMatrixMemDims(1) - obj.ImageRetFovMatrixMemDims(1))/2);
+            GpuNum = uint64(GpuNum);
+            func = str2func(['ReturnFovSingleGpu',obj.CompCap]);
+            [Error] = func(GpuNum,obj.HImageMatrix(GpuChanNum,:),obj.HImageRetFovMatrix(GpuChanNum,:),obj.ImageMatrixMemDims,obj.ImageRetFovMatrixMemDims,Inset);  
             if not(strcmp(Error,'no error'))
                 error(Error);
             end
